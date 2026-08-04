@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DevMind AI IDE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/theme/material-darker.min.css" />
+<style>
+:root {
+--bg-primary: #0b0d19;
+--bg-secondary: #060710;
+--bg-tertiary: #161b2e;
+--bg-surface: #0e1222;
+--bg-hover: #1c233d;
+--bg-active: #273052;
+--bg-input: #0b0d19;
+--fg-primary: #f8fafc;
+--fg-secondary: #94a3b8;
+--fg-muted: #64748b;
+--accent: #00f2fe;
+--accent-hover: #38ef7d;
+--accent-green: #10b981;
+--accent-red: #f43f5e;
+--accent-yellow: #fbbf24;
+--accent-teal: #06b6d4;
+--accent-mauve: #8b5cf6;
+--border: rgba(0, 242, 254, 0.12);
+--border-active: rgba(0, 242, 254, 0.5);
+--scrollbar: rgba(0, 242, 254, 0.1);
+--scrollbar-thumb: rgba(0, 242, 254, 0.25);
+--editor-bg: #0b0d19;
+--terminal-bg: #05060d;
+--chat-bg: #0b0d19;
+--activity-bg: #060710;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-family:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;line-height:1.5}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.title-bar{height:32px;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;flex-shrink:0;user-select:none}
+.title-bar .window-controls{display:flex;gap:8px;margin-right:12px}
+.title-bar .window-controls span{width:12px;height:12px;border-radius:50%;display:inline-block;cursor:pointer}
+.title-bar .window-controls span:hover{opacity:0.8}
+.title-bar .window-controls .close{background:#f43f5e}
+.title-bar .window-controls .minimize{background:#fbbf24}
+.title-bar .window-controls .maximize{background:#10b981}
+.title-bar .window-title{flex:1;text-align:center;font-size:12px;color:var(--fg-muted)}
+.title-bar .window-actions{margin-left:auto;display:flex;gap:8px}
+.title-bar .window-actions button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.title-bar .window-actions button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.main-layout{display:flex;flex:1;overflow:hidden}
+.activity-bar{width:48px;background:var(--activity-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0}
+.activity-bar .icon-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;color:var(--fg-muted);font-size:18px;transition:all 0.15s ease;position:relative}
+.activity-bar .icon-btn:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.activity-bar .icon-btn.active{color:var(--accent)}
+.activity-bar .icon-btn.active::before{content:"";position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--accent);border-radius:2px}
+.activity-bar .spacer{flex:1}
+.sidebar{width:260px;background:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sidebar .sidebar-header{padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--fg-muted);display:flex;justify-content:space-between;align-items:center}
+.sidebar .sidebar-header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.sidebar .sidebar-header button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.sidebar .sidebar-content{flex:1;overflow-y:auto;padding:4px 0}
+.sidebar .tree-item{display:flex;align-items:center;padding:3px 8px 3px 12px;cursor:pointer;font-size:12px;gap:6px;border-left:2px solid transparent;transition:all 0.1s ease}
+.sidebar .tree-item:hover{background:var(--bg-hover)}
+.sidebar .tree-item.active{background:var(--bg-active);border-left-color:var(--accent)}
+.sidebar .tree-item .icon{font-size:14px;width:18px;text-align:center}
+.sidebar .tree-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .tree-item .badge{margin-left:auto;font-size:10px;color:var(--fg-muted);background:var(--bg-tertiary);padding:1px 6px;border-radius:10px}
+.editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.editor-tabs{display:flex;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;height:36px}
+.editor-tabs .tab{display:flex;align-items:center;padding:0 12px;height:100%;font-size:12px;cursor:pointer;border-right:1px solid var(--border);gap:6px;white-space:nowrap;flex-shrink:0;transition:background 0.1s ease}
+.editor-tabs .tab:hover{background:var(--bg-hover)}
+.editor-tabs .tab.active{background:var(--bg-primary);border-bottom:2px solid var(--accent)}
+.editor-tabs .tab .close-btn{font-size:10px;color:var(--fg-muted);padding:2px 4px;border-radius:3px}
+.editor-tabs .tab .close-btn:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.editor-container{flex:1;display:flex;overflow:hidden;position:relative}
+.editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+.editor-pane:last-child{border-right:none}
+.editor-pane .CodeMirror{flex:1;height:100%;font-size:14px;line-height:1.6}
+.minimap{width:80px;background:var(--bg-secondary);border-left:1px solid var(--border);overflow:hidden;flex-shrink:0;position:relative}
+.minimap canvas{width:100%;height:100%}
+.breadcrumb-bar{padding:4px 12px;font-size:12px;color:var(--fg-muted);background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px;flex-shrink:0}
+.breadcrumb-bar .crumb{cursor:pointer;color:var(--fg-secondary)}
+.breadcrumb-bar .crumb:hover{color:var(--fg-primary)}
+.breadcrumb-bar .separator{color:var(--fg-muted);font-size:10px}
+.breadcrumb-bar .file-name{color:var(--fg-primary);font-weight:500}
+.status-bar{height:24px;background:var(--bg-secondary);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;font-size:11px;color:var(--fg-muted);flex-shrink:0;gap:12px}
+.status-bar .left{display:flex;gap:12px;align-items:center}
+.status-bar .right{margin-left:auto;display:flex;gap:12px;align-items:center}
+.status-bar .status-item{display:flex;align-items:center;gap:4px}
+.status-bar .status-item .dot{width:8px;height:8px;border-radius:50%}
+.status-bar .status-item .dot.green{background:var(--accent-green)}
+.status-bar .status-item .dot.red{background:var(--accent-red)}
+.status-bar .status-item .dot.yellow{background:var(--accent-yellow)}
+.chat-panel{width:380px;background:var(--bg-secondary);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.chat-panel .chat-header{padding:10px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.chat-panel .chat-header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.chat-panel .chat-header button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.chat-panel .chat-messages{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+.chat-panel .message{padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5;max-width:90%}
+.chat-panel .message.user{background:var(--bg-active);align-self:flex-end;border-bottom-right-radius:2px}
+.chat-panel .message.assistant{background:var(--bg-tertiary);align-self:flex-start;border-bottom-left-radius:2px}
+.chat-panel .message .code-block{background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-top:6px;font-family:"Fira Code",monospace;font-size:11px;overflow-x:auto;white-space:pre}
+.chat-panel .chat-input{padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:8px}
+.chat-panel .chat-input input{flex:1;padding:6px 10px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg-primary);border-radius:6px;font-size:12px;outline:none}
+.chat-panel .chat-input input:focus{border-color:var(--accent)}
+.chat-panel .chat-input button{background:var(--accent);color:var(--bg-primary);border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
+.chat-panel .chat-input button:hover{opacity:0.9}
+.terminal-panel{height:200px;background:var(--terminal-bg);border-top:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.terminal-panel .terminal-header{padding:6px 12px;font-size:11px;color:var(--fg-muted);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.terminal-panel .terminal-output{flex:1;overflow-y:auto;padding:8px 12px;font-family:"Fira Code",monospace;font-size:12px;color:var(--fg-secondary)}
+.terminal-panel .terminal-input{padding:6px 12px;border-top:1px solid var(--border);display:flex;gap:8px}
+.terminal-panel .terminal-input input{flex:1;background:none;border:none;color:var(--fg-primary);font-family:"Fira Code",monospace;font-size:12px;outline:none}
+.terminal-panel .terminal-input button{background:var(--accent);color:var(--bg-primary);border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px}
+.agent-panel{width:320px;background:var(--bg-secondary);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.agent-panel .agent-header{padding:10px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.agent-panel .agent-list{flex:1;overflow-y:auto;padding:8px}
+.agent-panel .agent-card{padding:8px 10px;border-radius:8px;background:var(--bg-tertiary);margin-bottom:6px;cursor:pointer;transition:background 0.1s ease}
+.agent-panel .agent-card:hover{background:var(--bg-hover)}
+.agent-panel .agent-card .agent-name{font-size:12px;font-weight:500;margin-bottom:2px}
+.agent-panel .agent-card .agent-status{font-size:11px;color:var(--fg-muted)}
+.agent-panel .agent-card .agent-status.running{color:var(--accent-green)}
+.agent-panel .agent-card .agent-status.queued{color:var(--accent-yellow)}
+.agent-panel .agent-card .agent-status.stopped{color:var(--accent-red)}
+.agent-mode-selector{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border)}
+.mode-btn{flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-tertiary);color:var(--fg-secondary);cursor:pointer;font-size:11px;font-weight:500;transition:all 0.15s ease}
+.mode-btn:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.mode-btn.active{background:var(--accent);color:var(--fg-on-accent);border-color:var(--accent)}
+.agent-shortcuts{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border)}
+.shortcut-btn{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-tertiary);color:var(--fg-secondary);cursor:pointer;font-size:11px;transition:all 0.15s ease}
+.shortcut-btn:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.agent-dag{porder-bottom:1px solid var(--border)}
+.dag-header{padding:8px 10px;font-size:11px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:0.5px}
+.dag-tree{padding:8px 10px;max-height:150px;overflow-y:auto}
+.dag-node{padding:4px 8px;margin:2px 0;border-radius:4px;font-size:11px;display:flex;align-items:center;gap:6px}
+.dag-node .dag-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dag-node .dag-status.pending{background:var(--fg-muted)}
+.dag-node .dag-status.running{background:var(--accent-green);animation:pulse 1s infinite}
+.dag-node .dag-status.completed{background:var(--accent-green)}
+.dag-node .dag-status.failed{background:var(--accent-red)}
+.dag-node .dag-label{color:var(--fg-secondary)}
+.dag-node .dag-role{color:var(--fg-muted);font-size:10px;margin-left:auto}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.agent-tool-inspector{border-bottom:1px solid var(--border)}
+/* Debug/Testing Panel */
+.debug-panel{position:fixed;bottom:0;left:0;right:0;height:200px;background:var(--bg-primary);border-top:2px solid var(--accent);z-index:1000;display:none;flex-direction:column}
+.debug-panel.open{display:flex}
+.debug-panel-header{padding:8px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.debug-panel-header button{background:none;border:none;color:var(--fg-secondary);cursor:pointer;font-size:14px}
+.debug-panel-body{flex:1;overflow-y:auto;padding:8px;font-size:11px;font-family:monospace}
+.debug-panel-body .debug-entry{padding:4px 8px;margin:2px 0;border-radius:4px;background:var(--bg-tertiary)}
+.debug-panel-body .debug-entry.pass{color:var(--accent-green)}
+.debug-panel-body .debug-entry.fail{color:var(--accent-red)}
+.debug-panel-body .debug-entry.info{color:var(--fg-muted)}
+.debug-panel-controls{display:flex;gap:6px;padding:8px}
+.debug-panel-controls button{padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--fg-secondary);cursor:pointer;font-size:11px}
+.debug-panel-controls button:hover{background:var(--bg-hover)}
+.debug-panel-controls button.active{background:var(--accent);color:var(--fg-on-accent)}
+
+.inspector-header{padding:8px 10px;font-size:11px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:0.5px}
+.inspector-log{padding:8px 10px;max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace}
+.inspector-log .tool-call{padding:4px 0;border-bottom:1px solid var(--border)}
+.inspector-log .tool-name{color:var(--accent);font-weight:600}
+.inspector-log .tool-result{color:var(--fg-muted);margin-left:8px}
+.inspector-log .tool-error{color:var(--accent-red)}
+.agent-chat{flex:1;display:flex;flex-direction:column}
+.chat-messages{flex:1;overflow-y:auto;padding:8px 10px}
+.chat-message{padding:6px 8px;margin-bottom:4px;border-radius:6px;font-size:11px}
+.chat-message.user{background:var(--bg-tertiary);color:var(--fg-primary)}
+.chat-message.agent{background:var(--bg-primary);color:var(--fg-secondary)}
+.chat-input{display:flex;gap:4px;padding:8px 10px;border-top:1px solid var(--border)}
+.chat-input input{flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);color:var(--fg-primary);font-size:11px}
+.chat-input button{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--accent);color:var(--fg-on-accent);cursor:pointer;font-size:11px}
+.panel{position:fixed;top:0;right:-320px;width:320px;height:100%;background:var(--bg-secondary);border-left:1px solid var(--border);z-index:100;transition:right 0.2s ease;display:flex;flex-direction:column}
+.panel.open{right:0}
+.panel .panel-header{padding:12px 16px;font-size:14px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.panel .panel-header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.panel .panel-header button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.panel .panel-content{flex:1;overflow-y:auto;padding:12px}
+.setting-group{margin-bottom:16px}
+.setting-group h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--fg-muted);margin-bottom:8px}
+.setting-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px}
+.setting-item label{color:var(--fg-secondary)}
+.setting-item select,.setting-item input[type="number"]{background:var(--bg-input);border:1px solid var(--border);color:var(--fg-primary);padding:4px 8px;border-radius:4px;font-size:12px;outline:none}
+.setting-item select:focus,.setting-item input[type="number"]:focus{border-color:var(--accent)}
+.toggle{width:36px;height:20px;background:var(--bg-tertiary);border-radius:10px;position:relative;cursor:pointer;transition:background 0.2s ease}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--fg-primary);border-radius:50%;transition:transform 0.2s ease}
+.toggle.on::after{transform:translateX(16px)}
+.btn{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s ease}
+.btn-primary{background:var(--accent);color:var(--bg-primary)}
+.btn-primary:hover{opacity:0.9}
+.btn-secondary{background:var(--bg-tertiary);color:var(--fg-primary)}
+.btn-secondary:hover{background:var(--bg-hover)}
+.btn-danger{background:var(--accent-red);color:white}
+.btn-danger:hover{opacity:0.9}
+.toast-container{position:fixed;top:40px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 16px;border-radius:8px;font-size:12px;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--fg-primary);box-shadow:0 4px 12px rgba(0,0,0,0.3);animation:slideIn 0.2s ease}
+.toast.success{border-color:var(--accent-green)}
+.toast.error{border-color:var(--accent-red)}
+.toast.info{border-color:var(--accent)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.loading{display:flex;align-items:center;justify-content:center;padding:20px;color:var(--fg-muted);font-size:12px}
+.no-results{padding:12px;text-align:center;color:var(--fg-muted);font-size:12px}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;width:600px;max-width:90vw;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.modal .modal-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal .modal-header h3{font-size:14px;font-weight:600}
+.modal .modal-header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px}
+.modal .modal-header button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.modal .modal-body{flex:1;overflow-y:auto;padding:16px}
+.modal .modal-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.command-palette{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;max-width:90vw;background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:300;display:none;flex-direction:column;max-height:70vh}
+.command-palette.open{display:flex}
+.command-palette .palette-input{padding:12px 16px;border-bottom:1px solid var(--border)}
+.command-palette .palette-input input{width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg-primary);border-radius:8px;font-size:14px;outline:none}
+.command-palette .palette-input input:focus{border-color:var(--accent)}
+.command-palette .palette-results{flex:1;overflow-y:auto;padding:8px}
+.command-palette .palette-item{padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.command-palette .palette-item:hover{background:var(--bg-hover)}
+.command-palette .palette-item .shortcut{font-size:11px;color:var(--fg-muted);background:var(--bg-tertiary);padding:2px 8px;border-radius:4px}
+.find-widget{position:absolute;top:0;right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:8px;display:none;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.find-widget.open{display:flex;gap:8px;align-items:center}
+.find-widget input{padding:4px 8px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg-primary);border-radius:4px;font-size:12px;outline:none;width:200px}
+.find-widget input:focus{border-color:var(--accent)}
+.find-widget button{background:none;border:none;color:var(--fg-muted);cursor:pointer;padding:4px 8px;border-radius:4px;font-size:12px}
+.find-widget button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.split-resizer{width:4px;background:var(--border);cursor:col-resize;flex-shrink:0;transition:background 0.15s ease}
+.split-resizer:hover{background:var(--accent)}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-tab{padding:8px 16px;font-size:12px;font-weight:500;color:var(--fg-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s ease}
+.panel-tab:hover{color:var(--fg-primary)}
+.panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.problems-panel{flex:1;overflow-y:auto;padding:8px;font-size:12px}
+.problem-item{padding:4px 8px;display:flex;align-items:flex-start;gap:8px;border-bottom:1px solid var(--border)}
+.problem-item .severity{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.problem-item .severity.error{background:var(--accent-red)}
+.problem-item .severity.warning{background:var(--accent-yellow)}
+.problem-item .severity.info{background:var(--accent-teal)}
+.problem-item .message{flex:1;color:var(--fg-secondary)}
+.problem-item .location{color:var(--fg-muted);font-size:11px;white-space:nowrap}
+.outline-tree{padding:4px 0}
+.outline-item{padding:4px 8px 4px 16px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.outline-item:hover{background:var(--bg-hover)}
+.outline-item .icon{font-size:12px}
+.outline-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.context-menu{position:fixed;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:4px 0;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:400;display:none;min-width:180px}
+.context-menu.open{display:block}
+.context-menu .menu-item{padding:6px 12px;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.context-menu .menu-item:hover{background:var(--bg-hover)}
+.context-menu .menu-item .shortcut{color:var(--fg-muted);font-size:11px}
+.context-menu .menu-separator{height:1px;background:var(--border);margin:4px 0}
+.toolbar{display:flex;align-items:center;padding:4px 8px;background:var(--bg-secondary);border-bottom:1px solid var(--border);gap:4px;flex-shrink:0}
+.toolbar .tool-btn{padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px;color:var(--fg-muted);background:none;border:none;transition:all 0.1s ease}
+.toolbar .tool-btn:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.toolbar .tool-btn.active{color:var(--accent)}
+.toolbar .separator{width:1px;height:20px;background:var(--border);margin:0 4px}
+.zoom-control{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--fg-muted)}
+.zoom-control button{background:none;border:none;color:var(--fg-muted);cursor:pointer;padding:2px 6px;border-radius:3px;font-size:12px}
+.zoom-control button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.side-panel{position:fixed;top:32px;bottom:24px;width:300px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;z-index:90;display:flex;flex-direction:column;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.side-panel .side-panel-header{padding:8px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.side-panel .side-panel-header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px}
+.side-panel .side-panel-header button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.side-panel .side-panel-content{flex:1;overflow-y:auto;padding:8px;font-size:12px}
+.zen-mode .sidebar{display:none}
+.zen-mode .activity-bar{display:none}
+.zen-mode .status-bar{display:none}
+.zen-mode .title-bar{display:none}
+.zen-mode .chat-panel{display:none}
+.zen-mode .terminal-panel{display:none}
+.zen-mode .agent-panel{display:none}
+.zen-mode .command-palette{display:none}
+.zen-mode .find-widget{display:none}
+.zen-mode .problems-panel{display:none}
+.zen-mode .output-panel{display:none}
+.zen-mode .minimap{display:none}
+.zen-mode .editor-container{border:none}
+.zen-mode .breadcrumb-bar{display:none}
+.zen-mode .toolbar{display:none}
+.zen-mode .panel{display:none}
+.zen-mode .side-panel{display:none}
+.zen-mode .context-menu{display:none}
+.zen-mode .toast-container{display:none}
+.zen-mode .loading-overlay{display:none}
+.zen-mode .editor-pane{border:none}
+.zen-mode .editor-pane .CodeMirror{border-radius:8px}
+.zen-mode .editor-tabs{display:none}
+.zen-mode .editor-container{background:var(--bg-primary)}
+.zen-mode body{background:var(--bg-primary)}
+.diff-viewer{display:flex;flex-direction:column;height:100%}
+.diff-header{padding:8px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.diff-content{flex:1;display:flex;overflow:hidden}
+.diff-line{padding:2px 12px;font-family:"Fira Code",monospace;font-size:12px;white-space:pre}
+.diff-line.added{background:rgba(16,185,129,0.1);color:var(--accent-green)}
+.diff-line.removed{background:rgba(244,63,94,0.1);color:var(--accent-red)}
+.diff-line.context{color:var(--fg-muted)}
+.diff-line .line-num{color:var(--fg-muted);margin-right:12px;user-select:none}
+.extension-item{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);gap:10px}
+.extension-item .ext-icon{font-size:20px;width:32px;text-align:center}
+.extension-item .ext-info{flex:1}
+.extension-item .ext-name{font-size:12px;font-weight:500}
+.extension-item .ext-desc{font-size:11px;color:var(--fg-muted)}
+.extension-item .ext-actions{margin-left:auto}
+.extension-item .ext-actions button{padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;border:none}
+.extension-item .ext-actions .install-btn{background:var(--accent);color:var(--bg-primary)}
+.extension-item .ext-actions .installed-btn{background:var(--bg-tertiary);color:var(--fg-secondary)}
+.debug-panel{flex:1;overflow-y:auto;padding:8px;font-size:12px}
+.debug-session{padding:8px;border-bottom:1px solid var(--border)}
+.debug-session .session-name{font-weight:500;margin-bottom:4px}
+.debug-session .session-info{font-size:11px;color:var(--fg-muted)}
+.debug-panel .breakpoint{display:flex;align-items:center;padding:4px 8px;font-size:12px;gap:8px}
+.debug-panel .breakpoint .bp-icon{font-size:10px}
+.debug-panel .breakpoint .bp-location{color:var(--fg-secondary);flex:1}
+.debug-panel .breakpoint .bp-actions{display:flex;gap:4px}
+.output-panel{flex:1;overflow-y:auto;padding:8px;font-size:12px;font-family:"Fira Code",monospace}
+.output-line{padding:2px 0;color:var(--fg-secondary)}
+.output-line.error{color:var(--accent-red)}
+.output-line.warn{color:var(--accent-yellow)}
+.output-line.success{color:var(--accent-green)}
+.output-line.info{color:var(--accent-teal)}
+.terminal-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.terminal-tab{padding:6px 12px;font-size:11px;cursor:pointer;border-bottom:2px solid transparent;color:var(--fg-muted);transition:all 0.15s ease}
+.terminal-tab:hover{color:var(--fg-primary)}
+.terminal-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.terminal-tab .close-tab{margin-left:6px;font-size:10px;opacity:0.5}
+.terminal-tab .close-tab:hover{opacity:1}
+.gutter-icon{position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;justify-content:center;width:20px;cursor:pointer;opacity:0.3;transition:opacity 0.15s ease}
+.gutter-icon:hover{opacity:1}
+.gutter-icon.folded{opacity:1;color:var(--accent)}
+.watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;color:var(--fg-muted);opacity:0.1;pointer-events:none;user-select:none}
+.suggest-widget{position:absolute;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:60;max-height:200px;overflow-y:auto;min-width:200px}
+.suggest-item{padding:6px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.suggest-item:hover{background:var(--bg-hover)}
+.suggest-item .suggest-type{font-size:10px;color:var(--fg-muted);background:var(--bg-tertiary);padding:1px 4px;border-radius:3px}
+.parameter-hints{position:absolute;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+.parameter-hints .param-name{color:var(--accent);font-weight:600}
+.parameter-hints .param-type{color:var(--fg-muted);font-size:11px}
+.parameter-hints .param-desc{color:var(--fg-secondary);font-size:11px;margin-top:2px}
+.hover-widget{position:absolute;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;z-index:50;max-width:400px;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+.hover-widget .hover-type{color:var(--accent);font-weight:600;margin-bottom:4px}
+.hover-widget .hover-doc{color:var(--fg-secondary)}
+.zen-mode .editor-pane{min-width:0}
+.zen-mode .editor-container{padding:16px}
+.zen-mode .editor-container .editor-pane{border:none}
+.zen-mode .editor-container .editor-pane .CodeMirror{border-radius:8px}
+.zen-mode .editor-container .editor-pane .CodeMirror-gutters{border-right:1px solid var(--border)}
+.zen-mode .editor-container .editor-pane .CodeMirror-lines{padding:8px 16px}
+.zen-mode .editor-container .editor-pane .CodeMirror-code{line-height:1.8}
+.zen-mode .editor-container .editor-pane .CodeMirror-cursor{border-left-color:var(--accent)}
+.zen-mode .editor-container .editor-pane .CodeMirror-selected{background:rgba(0,242,254,0.1)}
+.zen-mode .editor-container .editor-pane .CodeMirror-matchingbracket{color:var(--accent);text-decoration:underline}
+.zen-mode .editor-container .editor-pane .CodeMirror-activeline-background{background:rgba(255,255,255,0.02)}
+.zen-mode .editor-container .editor-pane .CodeMirror-linewidget{background:rgba(255,255,255,0.02)}
+.zen-mode .editor-container .editor-pane .CodeMirror-placeholder{color:var(--fg-muted)}
+.zen-mode .editor-container .editor-pane .CodeMirror-guttermarker{color:var(--accent-green)}
+.zen-mode .editor-container .editor-pane .CodeMirror-guttermarker-subtle{color:var(--fg-muted)}
+.zen-mode .editor-container .editor-pane .CodeMirror-linenumber{color:var(--fg-muted)}
+.zen-mode .editor-container .editor-pane .CodeMirror-cursor{animation:blink 1.06s step-end infinite}
+@keyframes blink{50%{border-color:transparent}}
+.zen-mode .editor-container .editor-pane .CodeMirror-selected{background:rgba(0,242,254,0.15)}
+.zen-mode .editor-container .editor-pane .CodeMirror-focused .CodeMirror-selected{background:rgba(0,242,254,0.2)}
+.zen-mode .editor-container .editor-pane .CodeMirror-activeline{background:rgba(255,255,255,0.03)}
+.zen-mode .editor-container .editor-pane .CodeMirror-selection{background:rgba(0,242,254,0.1)}
+.zen-mode .editor-container .editor-pane .CodeMirror-focused .CodeMirror-selection{background:rgba(0,242,254,0.15)}
+.rag-result{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+.rag-score{color:var(--accent);font-size:11px}
+.rag-file{color:var(--fg-secondary);font-size:11px;margin:2px 0}
+.rag-snippet{color:var(--fg-muted);font-size:11px;white-space:pre-wrap}
+.ki-item{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+.ki-title{color:var(--accent);font-weight:600;margin-bottom:2px}
+.ki-content{color:var(--fg-muted);font-size:11px;white-space:pre-wrap}
+.space-item{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+.space-name{color:var(--fg-primary);font-weight:500}
+.space-meta{color:var(--fg-muted);font-size:11px}
+.side-panel{position:fixed;top:32px;bottom:24px;width:300px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;z-index:90;display:flex;flex-direction:column;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.side-panel .side-panel-header{padding:8px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.side-panel .side-panel-header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px}
+.side-panel .side-panel-header button:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.side-panel .side-panel-content{flex:1;overflow-y:auto;padding:8px;font-size:12px}
+</style>
+</head>
+<body>
+<!-- Title Bar -->
+<div class="title-bar">
+<div class="window-controls">
+<span class="close" title="Close"></span>
+<span class="minimize" title="Minimize"></span>
+<span class="maximize" title="Maximize"></span>
+</div>
+<div class="window-title">DevMind AI IDE</div>
+<div class="window-actions">
+<button id="btn-search" title="Search (Ctrl+Shift+F)">?</button>
+<button id="btn-settings" title="Settings (Ctrl+,)">?</button>
+<button id="btn-theme" title="Toggle Theme">?</button>
+</div>
+</div>
+<!-- Main Layout -->
+<div class="main-layout">
+<!-- Activity Bar -->
+<div class="activity-bar" id="activity-bar">
+<div class="icon-btn active" data-panel="explorer" title="Explorer (Ctrl+B)">?</div>
+<div class="icon-btn" data-panel="search" title="Search (Ctrl+Shift+F)">?</div>
+<div class="icon-btn" data-panel="source-control" title="Git (Ctrl+Shift+G)">?</div>
+<div class="icon-btn" data-panel="run" title="Run & Debug (F5)">?</div>
+<div class="icon-btn" data-panel="extensions" title="Extensions (Ctrl+Shift+X)">?</div>
+<div class="icon-btn" data-panel="chat" title="Chat (Ctrl+I)">?</div>
+<div class="icon-btn" data-panel="terminal" title="Terminal (Ctrl+`)">?</div>
+<div class="icon-btn" data-panel="agent-center" title="Agent Center (Ctrl+Shift+A)">?</div>
+<div class="icon-btn" data-panel="spaces" title="Spaces (Ctrl+Shift+S)">📂</div>
+<div class="icon-btn" data-panel="pixel-office" id="btn-pixel-office" title="Pixel Office (Agent Town)">🎮</div>
+<div class="icon-btn" data-panel="settings" title="Settings">⚙️</div>
+<div class="spacer"></div>
+<div class="icon-btn" id="btn-zen-mode" title="Zen Mode (Ctrl+K Z)">?</div>
+</div>
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+<div class="sidebar-header">
+<span>Explorer</span>
+<div>
+<button id="btn-refresh" title="Refresh">?</button>
+<button id="btn-new-file" title="New File">?</button>
+</div>
+</div>
+<div class="sidebar-content" id="file-tree">
+<div class="tree-item" data-path="."><span class="icon">?</span><span class="name">project-root</span></div>
+</div>
+</div>
+<!-- Editor Area -->
+<div class="editor-area" id="editor-area">
+<div class="editor-tabs" id="editor-tabs">
+<div class="tab active">untitled.py<span class="close-btn">?</span></div>
+</div>
+<div class="toolbar" id="toolbar">
+<button class="tool-btn" id="btn-find" title="Find (Ctrl+F)">?</button>
+<button class="tool-btn" id="btn-replace" title="Replace (Ctrl+H)">?</button>
+<div class="separator"></div>
+<button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)">?</button>
+<button class="tool-btn" id="btn-redo" title="Redo (Ctrl+Y)">?</button>
+<div class="separator"></div>
+<button class="tool-btn" id="btn-copy" title="Copy (Ctrl+C)">?</button>
+<button class="tool-btn" id="btn-paste" title="Paste (Ctrl+V)">?</button>
+<button class="tool-btn" id="btn-cut" title="Cut (Ctrl+X)">?</button>
+<div class="separator"></div>
+<button class="tool-btn" id="btn-format" title="Format (Shift+Alt+F)">?</button>
+<button class="tool-btn" id="btn-comment" title="Toggle Comment (Ctrl+/)">?</button>
+<div class="separator"></div>
+<button class="tool-btn" id="btn-split" title="Split Editor (Ctrl+\)">?</button>
+<button class="tool-btn" id="btn-minimap" title="Minimap (Ctrl+M)">?</button>
+<div class="separator"></div>
+<div class="zoom-control">
+<button id="btn-zoom-out" title="Zoom Out">?</button>
+<span id="zoom-level">100%</span>
+<button id="btn-zoom-in" title="Zoom In">?</button>
+</div>
+</div>
+<div class="editor-container" id="editor-container">
+<div class="editor-pane" id="editor-pane-main">
+<div class="breadcrumb-bar" id="breadcrumb">
+<span class="crumb">project-root</span><span class="separator">/</span><span class="file-name">untitled.py</span>
+</div>
+<div id="editor" style="height:100%;font-family:'Fira Code',monospace;font-size:14px;line-height:1.6;padding:8px;overflow:auto;background:var(--editor-bg);color:var(--fg-primary);white-space:pre;tab-size:4;outline:none;" contenteditable="true"></div>
+<div class="minimap" id="minimap" style="display:none;"></div>
+</div>
+<div class="split-resizer" id="split-resizer" style="display:none;"></div>
+<div class="editor-pane" id="editor-pane-second" style="display:none;">
+<div class="breadcrumb-bar" id="breadcrumb-second">
+<span class="crumb">project-root</span><span class="separator">/</span><span class="file-name">untitled2.py</span>
+</div>
+<div id="editor-second" style="height:100%;font-family:'Fira Code',monospace;font-size:14px;line-height:1.6;padding:8px;overflow:auto;background:var(--editor-bg);color:var(--fg-primary);white-space:pre;tab-size:4;outline:none;" contenteditable="true"></div>
+</div>
+</div>
+<div id="pixel-office-container" style="display:none; flex:1; height:100%; width:100%; position:relative; background:#0b0d19;">
+<iframe id="pixel-office-iframe" src="http://localhost:3000" style="width:100%; height:100%; border:none;" title="Agent Town Pixel Workspace"></iframe>
+</div>
+</div>
+<!-- Chat Panel -->
+<div class="chat-panel" id="chat-panel">
+<div class="chat-header">
+<span>AI Assistant</span>
+<button id="btn-close-chat" title="Close">?</button>
+</div>
+<div class="chat-messages" id="chat-messages">
+<div class="message assistant">Hello! I am DevMind AI. How can I help you with your code?</div>
+</div>
+<div class="chat-input">
+<input type="text" id="chat-input" placeholder="Ask DevMind anything..." />
+<button id="btn-send-chat">Send</button>
+</div>
+</div>
+<!-- Terminal Panel -->
+<div class="terminal-panel" id="terminal-panel">
+<div class="terminal-tabs" id="terminal-tabs">
+<div class="terminal-tab active">bash<span class="close-tab">?</span></div>
+</div>
+<div class="terminal-output" id="terminal-output">
+<div style="color:var(--accent-green)">DevMind Terminal v1.0</div>
+<div>Type "help" for available commands.</div>
+</div>
+<div class="terminal-input">
+<span style="color:var(--accent-green);margin-right:4px;">$</span>
+<input type="text" id="terminal-input" placeholder="Enter command..." />
+<button id="btn-terminal-exec">Run</button>
+</div>
+</div>
+<!-- Agent Command Center -->
+<div class="agent-panel" id="agent-panel" style="display:none;">
+<div class="agent-header">
+<span>Agent Command Center</span>
+<button id="btn-close-agents" title="Close">?</button>
+</div>
+<div class="agent-list" id="agent-list">
+<!-- Agent Mode Selector -->
+<div class="agent-mode-selector" id="agent-mode-selector">
+<button class="mode-btn active" data-mode="chat" onclick="setAgentMode('chat')">Chat</button>
+<button class="mode-btn" data-mode="inline" onclick="setAgentMode('inline')">Inline Ctrl+K</button>
+<button class="mode-btn" data-mode="autonomous" onclick="setAgentMode('autonomous')">Autonomous</button>
+</div>
+<!-- One-Click Shortcuts -->
+<div class="agent-shortcuts" id="agent-shortcuts">
+<button class="shortcut-btn" onclick="executeAgentShortcut('auto_fix')">Auto-Fix All Problems</button>
+<button class="shortcut-btn" onclick="executeAgentShortcut('generate_tests')">Generate Test Suite</button>
+<button class="shortcut-btn" onclick="executeAgentShortcut('refactor_selection')">Refactor Selection</button>
+<button class="shortcut-btn" onclick="executeAgentShortcut('architectural_review')">Architectural Review</button>
+<button class="shortcut-btn" onclick="executeAgentShortcut('deploy_app')">Deploy App</button>
+</div>
+<!-- DAG Execution Tree -->
+<div class="agent-dag" id="agent-dag">
+<div class="dag-header">Task Execution Tree</div>
+<div class="dag-tree" id="dag-tree"></div>
+</div>
+<!-- Tool Call Inspector -->
+<div class="agent-tool-inspector" id="agent-tool-inspector">
+<div class="inspector-header">Tool Calls</div>
+<div class="inspector-log" id="inspector-log"></div>
+</div>
+<!-- Agent Chat -->
+<div class="agent-chat" id="agent-chat">
+<div class="chat-messages" id="chat-messages"></div>
+<div class="chat-input">
+<input type="text" id="agent-chat-input" placeholder="Type agent command..." onkeydown="if(event.key==='Enter')sendAgentChat()">
+<button onclick="sendAgentChat()">Send</button>
+</div>
+</div>
+</div>
+<!-- Problems Panel -->
+<div class="problems-panel" id="problems-panel" style="display:none;">
+<div class="panel-header">
+<span>Problems (0 errors, 0 warnings)</span>
+<button onclick="this.parentElement.parentElement.style.display='none'">?</button>
+</div>
+<div class="problems-content" id="problems-content"></div>
+</div>
+<!-- Output Panel -->
+<div class="output-panel" id="output-panel" style="display:none;">
+<div class="panel-header">
+<span>Output</span>
+<button onclick="this.parentElement.parentElement.style.display='none'">?</button>
+</div>
+<div class="output-content" id="output-content"></div>
+</div>
+<!-- Debug Panel -->
+<div class="debug-panel" id="debug-panel" style="display:none;">
+<div class="panel-header">
+<span>Debug</span>
+<button onclick="this.parentElement.parentElement.style.display='none'">?</button>
+</div>
+<div class="debug-content" id="debug-content"></div>
+</div>
+</div>
+<!-- Status Bar -->
+<div class="status-bar" id="status-bar">
+<div class="left">
+<div class="status-item"><span class="dot green"></span> Python 3.12</div>
+<div class="status-item" id="status-model">Model: gemma3:1b</div>
+<div class="status-item" id="status-cwd">E:/coding-assistant</div>
+<div class="status-item" id="status-file">untitled.py</div>
+</div>
+<div class="right">
+<div class="status-item" id="status-encoding">UTF-8</div>
+<div class="status-item" id="status-line-col">Ln 1, Col 1</div>
+<div class="status-item" id="status-whitespace">LF</div>
+<div class="status-item" id="status-indicator">Python</div>
+<div class="status-item" id="status-token">Tokens: 0</div>
+<div class="status-item" id="status-memory">Memory: 0 KB</div>
+</div>
+</div>
+<!-- Command Palette -->
+<div class="command-palette" id="command-palette">
+<div class="palette-input">
+<input type="text" id="palette-input" placeholder="Type a command..." autocomplete="off" />
+</div>
+<div class="palette-results" id="palette-results">
+<div class="palette-item" data-command="file.new">New File <span class="shortcut">Ctrl+N</span></div>
+<div class="palette-item" data-command="file.open">Open File <span class="shortcut">Ctrl+O</span></div>
+<div class="palette-item" data-command="file.save">Save File <span class="shortcut">Ctrl+S</span></div>
+<div class="palette-item" data-command="edit.find">Find <span class="shortcut">Ctrl+F</span></div>
+<div class="palette-item" data-command="edit.replace">Replace <span class="shortcut">Ctrl+H</span></div>
+<div class="palette-item" data-command="edit.format">Format Document <span class="shortcut">Shift+Alt+F</span></div>
+<div class="palette-item" data-command="view.sidebar">Toggle Sidebar <span class="shortcut">Ctrl+B</span></div>
+<div class="palette-item" data-command="view.terminal">Toggle Terminal <span class="shortcut">Ctrl+`</span></div>
+<div class="palette-item" data-command="view.chat">Toggle Chat <span class="shortcut">Ctrl+I</span></div>
+<div class="palette-item" data-command="view.agent">Agent Command Center <span class="shortcut">Ctrl+Shift+A</span></div>
+<div class="palette-item" data-command="view.spaces">Spaces <span class="shortcut">Ctrl+Shift+S</span></div>
+<div class="palette-item" data-command="view.rag">RAG Search <span class="shortcut">Ctrl+Shift+R</span></div>
+<div class="palette-item" data-command="view.knowledge">Knowledge Items <span class="shortcut">Ctrl+Shift+K</span></div>
+<div class="palette-item" data-command="zen.mode">Toggle Zen Mode <span class="shortcut">Ctrl+K Z</span></div>
+<div class="palette-item" data-command="editor.split">Split Editor <span class="shortcut">Ctrl+\</span></div>
+<div class="palette-item" data-command="editor.minimap">Toggle Minimap <span class="shortcut">Ctrl+M</span></div>
+<div class="palette-item" data-command="editor.wordwrap">Toggle Word Wrap <span class="shortcut">Alt+Z</span></div>
+<div class="palette-item" data-command="editor.gotoline">Go to Line <span class="shortcut">Ctrl+G</span></div>
+<div class="palette-item" data-command="editor.gotosymbol">Go to Symbol <span class="shortcut">Ctrl+Shift+O</span></div>
+<div class="palette-item" data-command="file.close">Close Editor <span class="shortcut">Ctrl+W</span></div>
+<div class="palette-item" data-command="file.closeall">Close All Editors <span class="shortcut">Ctrl+K W</span></div>
+<div class="palette-item" data-command="terminal.new">New Terminal <span class="shortcut">Ctrl+Shift+`</span></div>
+<div class="palette-item" data-command="terminal.clear">Clear Terminal <span class="shortcut">Ctrl+Shift+C</span></div>
+<div class="palette-item" data-command="debug.start">Start Debugging <span class="shortcut">F5</span></div>
+<div class="palette-item" data-command="debug.stop">Stop Debugging <span class="shortcut">Shift+F5</span></div>
+<div class="palette-item" data-command="debug.stepover">Step Over <span class="shortcut">F10</span></div>
+<div class="palette-item" data-command="debug.stepinto">Step Into <span class="shortcut">F11</span></div>
+<div class="palette-item" data-command="debug.stepout">Step Out <span class="shortcut">Shift+F11</span></div>
+<div class="palette-item" data-command="debug.breakpoint">Toggle Breakpoint <span class="shortcut">F9</span></div>
+<div class="palette-item" data-command="git.commit">Git Commit <span class="shortcut">Ctrl+Enter</span></div>
+<div class="palette-item" data-command="git.push">Git Push <span class="shortcut">Ctrl+Shift+P</span></div>
+<div class="palette-item" data-command="git.pull">Git Pull <span class="shortcut">Ctrl+Shift+U</span></div>
+<div class="palette-item" data-command="git.branch">Git Branch <span class="shortcut">Ctrl+Shift+B</span></div>
+<div class="palette-item" data-command="git.diff">Git Diff <span class="shortcut">Ctrl+Shift+D</span></div>
+<div class="palette-item" data-command="extension.install">Install Extension <span class="shortcut">Ctrl+Shift+X</span></div>
+<div class="palette-item" data-command="settings.open">Open Settings <span class="shortcut">Ctrl+,</span></div>
+<div class="palette-item" data-command="settings.keybindings">Keyboard Shortcuts <span class="shortcut">Ctrl+K Ctrl+S</span></div>
+<div class="palette-item" data-command="help.shortcuts">Keyboard Shortcuts Reference <span class="shortcut">Ctrl+Shift+?</span></div>
+<div class="palette-item" data-command="help.about">About DevMind <span class="shortcut">Ctrl+Shift+A</span></div>
+</div>
+</div>
+<!-- Find/Replace Widget -->
+<div class="find-widget" id="find-widget">
+<input type="text" id="find-input" placeholder="Find" />
+<input type="text" id="replace-input" placeholder="Replace" style="display:none;" />
+<button id="btn-find-next" title="Find Next">?</button>
+<button id="btn-find-prev" title="Find Previous">?</button>
+<button id="btn-replace" title="Replace" style="display:none;">?</button>
+<button id="btn-replace-all" title="Replace All" style="display:none;">?</button>
+<button id="btn-close-find" title="Close">?</button>
+</div>
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:500;display:flex;align-items:center;justify-content:center;color:var(--fg-primary);font-size:14px;">
+<div>Loading DevMind...</div>
+</div>
+<!-- Context Menu -->
+<div class="context-menu" id="context-menu">
+<div class="menu-item">New File <span class="shortcut">Ctrl+N</span></div>
+<div class="menu-item">New Folder <span class="shortcut">Ctrl+Shift+N</span></div>
+<div class="menu-separator"></div>
+<div class="menu-item">Open <span class="shortcut">Ctrl+O</span></div>
+<div class="menu-item">Save <span class="shortcut">Ctrl+S</span></div>
+<div class="menu-item">Save As <span class="shortcut">Ctrl+Shift+S</span></div>
+<div class="menu-separator"></div>
+<div class="menu-item">Rename <span class="shortcut">F2</span></div>
+<div class="menu-item">Delete <span class="shortcut">Del</span></div>
+<div class="menu-separator"></div>
+<div class="menu-item">Copy <span class="shortcut">Ctrl+C</span></div>
+<div class="menu-item">Paste <span class="shortcut">Ctrl+V</span></div>
+<div class="menu-item">Cut <span class="shortcut">Ctrl+X</span></div>
+<div class="menu-separator"></div>
+<div class="menu-item">Format Document <span class="shortcut">Shift+Alt+F</span></div>
+<div class="menu-item">Toggle Comment <span class="shortcut">Ctrl+/</span></div>
+<div class="menu-separator"></div>
+<div class="menu-item">Copy Path <span class="shortcut">Ctrl+Shift+C</span></div>
+<div class="menu-item">Reveal in Explorer <span class="shortcut">Ctrl+Shift+E</span></div>
+</div>
+<!-- Hover Widget -->
+<div class="hover-widget" id="hover-widget" style="display:none;">
+<div class="hover-type" id="hover-type"></div>
+<div class="hover-doc" id="hover-doc"></div>
+</div>
+<!-- Parameter Hints -->
+<div class="parameter-hints" id="parameter-hints" style="display:none;">
+<div id="param-content"></div>
+</div>
+<!-- Suggest Widget -->
+<div class="suggest-widget" id="suggest-widget" style="display:none;"></div>
+<script>
+// DevMind IDE Core - Professional Grade
+var state = {
+currentFile: "untitled.py",
+files: {"untitled.py": "# Welcome to DevMind AI IDE\n# Start coding here..."},
+openTabs: ["untitled.py"],
+activeTab: "untitled.py",
+sidebarPanel: "explorer",
+chatOpen: true,
+terminalOpen: true,
+agentPanelOpen: false,
+zenMode: false,
+minimapVisible: false,
+splitEditor: false,
+findOpen: false,
+replaceOpen: false,
+zoomLevel: 100,
+wordWrap: false,
+theme: "dark",
+model: "gemma3:1b",
+tokenCount: 0,
+memoryUsage: 0,
+agents: [
+{name: "code-reviewer", status: "running", model: "ling-3.0-flash-free"},
+{name: "test-generator", status: "queued", model: "deepseek-v4-flash-free"}
+],
+spaces: [],
+knowledgeItems: [],
+completions: [],
+searchResults: [],
+problems: [],
+breakpoints: [],
+terminalHistory: [],
+chatHistory: [],
+shortcuts: {
+"Ctrl+N": "file.new", "Ctrl+O": "file.open", "Ctrl+S": "file.save",
+"Ctrl+F": "edit.find", "Ctrl+H": "edit.replace", "Shift+Alt+F": "edit.format",
+"Ctrl+B": "view.sidebar", "Ctrl+`": "view.terminal", "Ctrl+I": "view.chat",
+"Ctrl+Shift+A": "view.agent", "Ctrl+Shift+S": "view.spaces",
+"Ctrl+Shift+R": "view.rag", "Ctrl+Shift+K": "view.knowledge",
+"Ctrl+K Z": "zen.mode", "Ctrl+\\": "editor.split", "Ctrl+M": "editor.minimap",
+"Alt+Z": "editor.wordwrap", "Ctrl+G": "editor.gotoline",
+"Ctrl+Shift+O": "editor.gotosymbol", "Ctrl+W": "file.close",
+"Ctrl+K W": "file.closeall", "Ctrl+Shift+`": "terminal.new",
+"Ctrl+Shift+C": "terminal.clear", "F5": "debug.start", "Shift+F5": "debug.stop",
+"F10": "debug.stepover", "F11": "debug.stepinto", "Shift+F11": "debug.stepout",
+"F9": "debug.breakpoint", "Ctrl+Enter": "git.commit",
+"Ctrl+Shift+P": "git.push", "Ctrl+Shift+U": "git.pull",
+"Ctrl+Shift+B": "git.branch", "Ctrl+Shift+D": "git.diff",
+"Ctrl+Shift+X": "extension.install", "Ctrl+,": "settings.open",
+"Ctrl+K Ctrl+S": "settings.keybindings", "Ctrl+Shift+?": "help.shortcuts",
+"Ctrl+Shift+A": "help.about"
+}
+};
+var editorEl = document.getElementById("editor");
+var editorSecondEl = document.getElementById("editor-second");
+var chatMessagesEl = document.getElementById("chat-messages");
+var chatInputEl = document.getElementById("chat-input");
+var terminalOutputEl = document.getElementById("terminal-output");
+var terminalInputEl = document.getElementById("terminal-input");
+var fileTreeEl = document.getElementById("file-tree");
+var editorTabsEl = document.getElementById("editor-tabs");
+var statusBarEl = document.getElementById("status-bar");
+var commandPaletteEl = document.getElementById("command-palette");
+var paletteInputEl = document.getElementById("palette-input");
+var paletteResultsEl = document.getElementById("palette-results");
+var findWidgetEl = document.getElementById("find-widget");
+var findInputEl = document.getElementById("find-input");
+var replaceInputEl = document.getElementById("replace-input");
+var toastContainerEl = document.getElementById("toast-container");
+var contextMenuEl = document.getElementById("context-menu");
+var hoverWidgetEl = document.getElementById("hover-widget");
+var parameterHintsEl = document.getElementById("parameter-hints");
+var suggestWidgetEl = document.getElementById("suggest-widget");
+var loadingOverlayEl = document.getElementById("loading-overlay");
+var problemsPanelEl = document.getElementById("problems-panel");
+var outputPanelEl = document.getElementById("output-panel");
+var debugPanelEl = document.getElementById("debug-panel");
+var agentPanelEl = document.getElementById("agent-panel");
+var splitResizerEl = document.getElementById("split-resizer");
+var minimapEl = document.getElementById("minimap");
+var breadcrumbEl = document.getElementById("breadcrumb");
+var breadcrumbSecondEl = document.getElementById("breadcrumb-second");
+var editorPaneMainEl = document.getElementById("editor-pane-main");
+var editorPaneSecondEl = document.getElementById("editor-pane-second");
+var editorContainerEl = document.getElementById("editor-container");
+var sidebarEl = document.getElementById("sidebar");
+var activityBarEl = document.getElementById("activity-bar");
+var chatPanelEl = document.getElementById("chat-panel");
+var terminalPanelEl = document.getElementById("terminal-panel");
+var terminalTabsEl = document.getElementById("terminal-tabs");
+var zoomLevelEl = document.getElementById("zoom-level");
+var statusModelEl = document.getElementById("status-model");
+var statusCwdEl = document.getElementById("status-cwd");
+var statusFileEl = document.getElementById("status-file");
+var statusLineColEl = document.getElementById("status-line-col");
+var statusEncodingEl = document.getElementById("status-encoding");
+var statusWhitespaceEl = document.getElementById("status-whitespace");
+var statusIndicatorEl = document.getElementById("status-indicator");
+var statusTokenEl = document.getElementById("status-token");
+var statusMemoryEl = document.getElementById("status-memory");
+// Initialize
+function init() {
+loadingOverlayEl.style.display = "none";
+setupEditor();
+setupEventListeners();
+updateStatusbar();
+showToast("DevMind AI IDE loaded successfully", "success");
+}
+function setupEditor() {
+if (!editorEl) return;
+editorEl.addEventListener("input", function() {
+state.files[state.activeTab] = editorEl.innerText;
+updateTokenCount();
+});
+editorEl.addEventListener("keydown", handleEditorKeydown);
+editorEl.addEventListener("click", updateCursorPosition);
+editorEl.addEventListener("keyup", updateCursorPosition);
+editorEl.addEventListener("paste", handlePaste);
+editorEl.addEventListener("dragover", function(e) { e.preventDefault(); });
+editorEl.addEventListener("drop", handleFileDrop);
+if (editorSecondEl) {
+editorSecondEl.addEventListener("input", function() {
+state.files["untitled2.py"] = editorSecondEl.innerText;
+});
+editorSecondEl.addEventListener("keydown", handleEditorKeydown);
+}
+loadFileContent(state.activeTab);
+}
+function loadFileContent(filename) {
+var content = state.files[filename] || "";
+if (editorEl && filename === state.activeTab) {
+editorEl.innerText = content;
+}
+if (editorSecondEl && filename === "untitled2.py") {
+editorSecondEl.innerText = content;
+}
+updateBreadcrumb(filename);
+}
+function handleEditorKeydown(e) {
+if (e.ctrlKey && e.shiftKey && e.key === "P") { e.preventDefault(); toggleCommandPalette(); return; }
+if (e.ctrlKey && e.key === "f") { e.preventDefault(); toggleFind(); return; }
+if (e.ctrlKey && e.key === "h") { e.preventDefault(); toggleReplace(); return; }
+if (e.ctrlKey && e.key === "s") { e.preventDefault(); saveFile(); showToast("File saved", "success"); return; }
+if (e.ctrlKey && e.key === "n") { e.preventDefault(); newFile(); return; }
+if (e.ctrlKey && e.key === "o") { e.preventDefault(); openFile(); return; }
+if (e.shiftKey && e.altKey && e.key === "F") { e.preventDefault(); formatDocument(); showToast("Document formatted", "info"); return; }
+if (e.ctrlKey && e.key === "/") { e.preventDefault(); toggleComment(); return; }
+if (e.ctrlKey && e.key === "\\") { e.preventDefault(); toggleSplitEditor(); return; }
+if (e.ctrlKey && e.key === "k") { e.preventDefault(); toggleZenMode(); return; }
+if (e.ctrlKey && e.key === "g") { e.preventDefault(); goToLine(); return; }
+if (e.ctrlKey && e.key === "w") { e.preventDefault(); closeTab(); return; }
+if (e.ctrlKey && e.key === "z") { e.preventDefault(); document.execCommand("undo"); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "z") { e.preventDefault(); document.execCommand("redo"); return; }
+if (e.key === "Tab") { e.preventDefault(); insertTab(); return; }
+if (e.key === "Enter") { handleAutoIndent(e); }
+if (")]}>\"'\`".includes(e.key)) { autoCloseBracket(e); }
+if (e.key === "Escape") { closeAllPanels(); return; }
+if (e.key.startsWith("F") && e.key.length <= 3) { handleDebugKey(e.key); }
+}
+function handlePaste(e) {
+setTimeout(function() { autoIndentAfterPaste(); }, 10);
+}
+function handleFileDrop(e) {
+e.preventDefault();
+var files = e.dataTransfer.files;
+if (files.length > 0) {
+var file = files[0];
+var reader = new FileReader();
+reader.onload = function(ev) {
+state.files[file.name] = ev.target.result;
+openTab(file.name);
+showToast("File " + file.name + " opened", "success");
+};
+reader.readAsText(file);
+}
+}
+function handleAutoIndent(e) {
+var text = editorEl.innerText;
+var cursorPos = getCursorPosition();
+var lineStart = text.lastIndexOf("\n", cursorPos - 1) + 1;
+var currentLine = text.substring(lineStart, cursorPos);
+var indent = currentLine.match(/^(\s*)/)[1];
+var lastChar = currentLine.trim().slice(-1);
+if (lastChar === ":" || lastChar === "{" || lastChar === "(") { indent += "    "; }
+insertText("\n" + indent);
+e.preventDefault();
+}
+function autoCloseBracket(e) {
+var brackets = {"(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"};
+if (brackets[e.key]) {
+e.preventDefault();
+var pos = getCursorPosition();
+var text = editorEl.innerText;
+var newText = text.slice(0, pos) + e.key + brackets[e.key] + text.slice(pos);
+editorEl.innerText = newText;
+setCursorPosition(pos + 1);
+state.files[state.activeTab] = newText;
+}
+}
+function autoIndentAfterPaste() {
+var text = editorEl.innerText;
+var pos = getCursorPosition();
+var lineStart = text.lastIndexOf("\n", pos - 1) + 1;
+var pasted = text.substring(lineStart, pos);
+var lines = pasted.split("\n");
+if (lines.length > 1) {
+var baseIndent = lines[0].match(/^(\s*)/)[1];
+for (var i = 1; i < lines.length; i++) {
+if (lines[i].trim().length > 0) {
+var currentIndent = lines[i].match(/^(\s*)/)[1];
+if (currentIndent.length < baseIndent.length) {
+lines[i] = baseIndent + lines[i].trimLeft();
+}
+}
+}
+var newText = text.substring(0, lineStart) + lines.join("\n") + text.substring(pos);
+editorEl.innerText = newText;
+setCursorPosition(lineStart + lines.join("\n").length);
+state.files[state.activeTab] = newText;
+}
+}
+function insertTab() {
+var pos = getCursorPosition();
+var text = editorEl.innerText;
+var newText = text.slice(0, pos) + "    " + text.slice(pos);
+editorEl.innerText = newText;
+setCursorPosition(pos + 4);
+state.files[state.activeTab] = newText;
+}
+function getCursorPosition() {
+var sel = window.getSelection();
+if (sel.rangeCount === 0) return 0;
+var range = sel.getRangeAt(0);
+var preCaretRange = range.cloneRange();
+preCaretRange.selectNodeContents(editorEl);
+preCaretRange.setEnd(range.endContainer, range.endOffset);
+return preCaretRange.toString().length;
+}
+function setCursorPosition(pos) {
+var range = document.createRange();
+var sel = window.getSelection();
+range.setStart(editorEl.firstChild || editorEl, 0);
+range.collapse(true);
+var chars = 0;
+var nodeStack = [editorEl];
+var node;
+var found = false;
+while (!found && nodeStack.length > 0) {
+node = nodeStack.pop();
+if (node.nodeType === 3) {
+var nextChars = chars + node.textContent.length;
+if (pos <= nextChars) {
+range.setStart(node, pos - chars);
+range.collapse(true);
+found = true;
+break;
+}
+chars = nextChars;
+} else {
+var children = node.childNodes;
+for (var i = children.length - 1; i >= 0; i--) {
+nodeStack.push(children[i]);
+}
+}
+}
+sel.removeAllRanges();
+sel.addRange(range);
+}
+function insertText(text) {
+var pos = getCursorPosition();
+var currentText = editorEl.innerText;
+var newText = currentText.slice(0, pos) + text + currentText.slice(pos);
+editorEl.innerText = newText;
+setCursorPosition(pos + text.length);
+state.files[state.activeTab] = newText;
+}
+function toggleCommandPalette() {
+commandPaletteEl.classList.toggle("open");
+if (commandPaletteEl.classList.contains("open")) {
+paletteInputEl.focus();
+paletteInputEl.value = "";
+filterPaletteResults("");
+}
+}
+function filterPaletteResults(query) {
+var items = paletteResultsEl.querySelectorAll(".palette-item");
+items.forEach(function(item) {
+var text = item.textContent.toLowerCase();
+item.style.display = text.includes(query.toLowerCase()) ? "flex" : "none";
+});
+}
+function toggleFind() {
+findWidgetEl.classList.toggle("open");
+findInputEl.focus();
+findInputEl.select();
+}
+function toggleReplace() {
+findWidgetEl.classList.add("open");
+replaceInputEl.style.display = "inline-block";
+findInputEl.focus();
+}
+function toggleZenMode() {
+state.zenMode = !state.zenMode;
+document.body.classList.toggle("zen-mode", state.zenMode);
+showToast(state.zenMode ? "Zen Mode ON" : "Zen Mode OFF", "info");
+}
+function toggleSplitEditor() {
+state.splitEditor = !state.splitEditor;
+editorPaneSecondEl.style.display = state.splitEditor ? "flex" : "none";
+splitResizerEl.style.display = state.splitEditor ? "block" : "none";
+showToast(state.splitEditor ? "Split editor ON" : "Split editor OFF", "info");
+}
+function toggleMinimap() {
+state.minimapVisible = !state.minimapVisible;
+minimapEl.style.display = state.minimapVisible ? "block" : "none";
+showToast(state.minimapVisible ? "Minimap ON" : "Minimap OFF", "info");
+}
+function toggleWordWrap() {
+state.wordWrap = !state.wordWrap;
+editorEl.style.whiteSpace = state.wordWrap ? "pre-wrap" : "pre";
+if (editorSecondEl) {
+editorSecondEl.style.whiteSpace = state.wordWrap ? "pre-wrap" : "pre";
+}
+showToast(state.wordWrap ? "Word Wrap ON" : "Word Wrap OFF", "info");
+}
+function goToLine() {
+var lineNum = prompt("Go to line:", "1");
+if (lineNum) {
+var text = editorEl.innerText;
+var lines = text.split("\n");
+var targetLine = parseInt(lineNum) - 1;
+if (targetLine >= 0 && targetLine < lines.length) {
+var pos = 0;
+for (var i = 0; i < targetLine; i++) { pos += lines[i].length + 1; }
+setCursorPosition(pos);
+editorEl.focus();
+}
+}
+}
+function closeTab() {
+if (state.openTabs.length > 1) {
+var idx = state.openTabs.indexOf(state.activeTab);
+state.openTabs.splice(idx, 1);
+state.activeTab = state.openTabs[Math.max(0, idx - 1)];
+loadFileContent(state.activeTab);
+updateTabs();
+}
+}
+function newFile() {
+var name = prompt("New file name:", "untitled.py");
+if (name && !state.files[name]) {
+state.files[name] = "";
+state.openTabs.push(name);
+state.activeTab = name;
+loadFileContent(name);
+updateTabs();
+showToast("New file " + name + " created", "success");
+}
+}
+function openFile() {
+var path = prompt("Open file path:", state.currentFile || "");
+if (path && state.files[path]) {
+state.activeTab = path;
+loadFileContent(path);
+updateTabs();
+}
+}
+function saveFile() {
+if (state.activeTab) {
+state.files[state.activeTab] = editorEl.innerText;
+showToast("Saved " + state.activeTab, "success");
+}
+}
+function formatDocument() {
+var text = editorEl.innerText;
+var lines = text.split("\n");
+var formatted = [];
+var indentLevel = 0;
+for (var i = 0; i < lines.length; i++) {
+var line = lines[i];
+var trimmed = line.trim();
+if (trimmed === "") { formatted.push(""); continue; }
+if (trimmed.endsWith(":") || trimmed.endsWith("{") || trimmed.endsWith("(")) {
+formatted.push("    ".repeat(indentLevel) + trimmed);
+indentLevel++;
+} else if (trimmed.startsWith("return") || trimmed.startsWith("break") || trimmed.startsWith("continue") || trimmed.startsWith("pass") || trimmed.startsWith("raise") || trimmed.startsWith("yield")) {
+indentLevel = Math.max(0, indentLevel - 1);
+formatted.push("    ".repeat(indentLevel) + trimmed);
+} else if (trimmed.startsWith("elif") || trimmed.startsWith("else:") || trimmed.startsWith("except") || trimmed.startsWith("finally:")) {
+indentLevel = Math.max(0, indentLevel - 1);
+formatted.push("    ".repeat(indentLevel) + trimmed);
+} else {
+formatted.push("    ".repeat(indentLevel) + trimmed);
+}
+}
+editorEl.innerText = formatted.join("\n");
+state.files[state.activeTab] = formatted.join("\n");
+}
+function toggleComment() {
+var text = editorEl.innerText;
+var pos = getCursorPosition();
+var lines = text.split("\n");
+var lineStart = text.lastIndexOf("\n", pos - 1) + 1;
+var lineEnd = text.indexOf("\n", pos);
+if (lineEnd === -1) lineEnd = text.length;
+var currentLine = text.substring(lineStart, lineEnd);
+if (currentLine.trim().startsWith("#")) {
+var newLine = currentLine.replace(/^(\s*)#\s?/, "$1");
+} else {
+var newLine = (currentLine.match(/^(\s*)/)[1] || "") + "# " + currentLine.trim();
+}
+var newText = text.substring(0, lineStart) + newLine + text.substring(lineEnd);
+editorEl.innerText = newText;
+setCursorPosition(lineStart + newLine.length);
+state.files[state.activeTab] = newText;
+}
+function updateCursorPosition() {
+var text = editorEl.innerText;
+var pos = getCursorPosition();
+var lines = text.substring(0, pos).split("\n");
+var line = lines.length;
+var col = lines[lines.length - 1].length + 1;
+statusLineColEl.textContent = "Ln " + line + ", Col " + col;
+}
+function updateTokenCount() {
+var text = editorEl.innerText;
+var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+statusTokenEl.textContent = "Tokens: " + words;
+}
+function updateStatusbar() {
+if (statusModelEl) statusModelEl.textContent = "Model: " + state.model;
+if (statusCwdEl) statusCwdEl.textContent = "E:/coding-assistant";
+if (statusFileEl) statusFileEl.textContent = state.activeTab || "untitled.py";
+}
+function updateBreadcrumb(filename) {
+if (breadcrumbEl) {
+breadcrumbEl.innerHTML = '<span class="crumb">project-root</span><span class="separator">/</span><span class="file-name">' + filename + "</span>";
+}
+}
+function updateTabs() {
+if (!editorTabsEl) return;
+editorTabsEl.innerHTML = state.openTabs.map(function(tab) {
+return '<div class="tab ' + (tab === state.activeTab ? "active" : "") + '" data-file="' + tab + '">' + tab + '<span class="close-btn" data-close="' + tab + '">?</span></div>';
+}).join("");
+editorTabsEl.querySelectorAll(".tab").forEach(function(tabEl) {
+tabEl.addEventListener("click", function(e) {
+if (e.target.dataset.close) { closeTabById(e.target.dataset.close); return; }
+var file = this.dataset.file;
+state.activeTab = file;
+loadFileContent(file);
+updateTabs();
+updateStatusbar();
+});
+});
+}
+function closeTabById(filename) {
+var idx = state.openTabs.indexOf(filename);
+if (idx !== -1) {
+state.openTabs.splice(idx, 1);
+if (state.activeTab === filename) {
+state.activeTab = state.openTabs[Math.max(0, idx - 1)] || "";
+}
+loadFileContent(state.activeTab);
+updateTabs();
+updateStatusbar();
+}
+}
+function openTab(filename) {
+if (!state.files[filename]) { state.files[filename] = ""; }
+if (state.openTabs.indexOf(filename) === -1) { state.openTabs.push(filename); }
+state.activeTab = filename;
+loadFileContent(filename);
+updateTabs();
+updateStatusbar();
+}
+function playAudioEffect(name) {
+    try {
+        var audio = new Audio('/audio/' + name + '.wav');
+        audio.volume = 0.4;
+        audio.play().catch(function() {});
+    } catch(e) {}
+}
+function setupEventListeners() {
+playAudioEffect('initialize');
+activityBarEl.querySelectorAll(".icon-btn").forEach(function(btn) {
+btn.addEventListener("click", function() {
+playAudioEffect('button');
+var panel = this.dataset.panel;
+switchPanel(panel);
+});
+});
+if (paletteInputEl) {
+paletteInputEl.addEventListener("input", function() { filterPaletteResults(this.value); });
+paletteInputEl.addEventListener("keydown", function(e) {
+if (e.key === "Enter") {
+var selected = paletteResultsEl.querySelector(".palette-item[style='display:flex']");
+if (selected) { executeCommand(selected.dataset.command); }
+} else if (e.key === "Escape") { toggleCommandPalette(); }
+});
+}
+paletteResultsEl.addEventListener("click", function(e) {
+var item = e.target.closest(".palette-item");
+if (item) { executeCommand(item.dataset.command); }
+});
+if (findInputEl) { findInputEl.addEventListener("input", function() { performFind(this.value); }); }
+document.getElementById("btn-close-find").addEventListener("click", function() {
+findWidgetEl.classList.remove("open");
+replaceInputEl.style.display = "none";
+});
+document.getElementById("btn-find-next").addEventListener("click", function() { performFind(findInputEl.value, "next"); });
+document.getElementById("btn-find-prev").addEventListener("click", function() { performFind(findInputEl.value, "prev"); });
+document.getElementById("btn-replace").addEventListener("click", function() { performReplace(findInputEl.value, replaceInputEl.value, false); });
+document.getElementById("btn-replace-all").addEventListener("click", function() { performReplace(findInputEl.value, replaceInputEl.value, true); });
+document.getElementById("btn-find").addEventListener("click", toggleFind);
+document.getElementById("btn-replace").addEventListener("click", toggleReplace);
+document.getElementById("btn-undo").addEventListener("click", function() { document.execCommand("undo"); });
+document.getElementById("btn-redo").addEventListener("click", function() { document.execCommand("redo"); });
+document.getElementById("btn-copy").addEventListener("click", function() { document.execCommand("copy"); });
+document.getElementById("btn-paste").addEventListener("click", function() { document.execCommand("paste"); });
+document.getElementById("btn-cut").addEventListener("click", function() { document.execCommand("cut"); });
+document.getElementById("btn-format").addEventListener("click", formatDocument);
+document.getElementById("btn-comment").addEventListener("click", toggleComment);
+document.getElementById("btn-split").addEventListener("click", toggleSplitEditor);
+document.getElementById("btn-minimap").addEventListener("click", toggleMinimap);
+document.getElementById("btn-zoom-in").addEventListener("click", function() {
+state.zoomLevel = Math.min(200, state.zoomLevel + 10);
+editorEl.style.fontSize = (14 + state.zoomLevel / 100) + "px";
+zoomLevelEl.textContent = state.zoomLevel + "%";
+});
+document.getElementById("btn-zoom-out").addEventListener("click", function() {
+state.zoomLevel = Math.max(50, state.zoomLevel - 10);
+editorEl.style.fontSize = (14 + state.zoomLevel / 100) + "px";
+zoomLevelEl.textContent = state.zoomLevel + "%";
+});
+document.getElementById("btn-send-chat").addEventListener("click", sendChatMessage);
+chatInputEl.addEventListener("keydown", function(e) {
+if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+});
+document.getElementById("btn-terminal-exec").addEventListener("click", executeTerminalCommand);
+terminalInputEl.addEventListener("keydown", function(e) {
+if (e.key === "Enter") { executeTerminalCommand(); }
+});
+document.getElementById("btn-close-chat").addEventListener("click", function() { chatPanelEl.style.display = "none"; });
+document.getElementById("btn-close-agents").addEventListener("click", function() { agentPanelEl.style.display = "none"; });
+document.getElementById("btn-settings").addEventListener("click", function() { togglePanel("settings"); });
+document.getElementById("btn-theme").addEventListener("click", toggleTheme);
+document.getElementById("btn-search").addEventListener("click", function() { togglePanel("search"); });
+document.getElementById("btn-zen-mode").addEventListener("click", toggleZenMode);
+document.getElementById("btn-refresh").addEventListener("click", function() { showToast("File tree refreshed", "info"); });
+document.getElementById("btn-new-file").addEventListener("click", newFile);
+document.addEventListener("contextmenu", function(e) {
+e.preventDefault();
+contextMenuEl.style.left = e.clientX + "px";
+contextMenuEl.style.top = e.clientY + "px";
+contextMenuEl.classList.add("open");
+});
+document.addEventListener("click", function() { contextMenuEl.classList.remove("open"); });
+document.addEventListener("keydown", function(e) {
+if (e.ctrlKey && e.shiftKey && e.key === "P") { e.preventDefault(); toggleCommandPalette(); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "?") { e.preventDefault(); showKeyboardShortcuts(); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "X") { e.preventDefault(); togglePanel("extensions"); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "D") { e.preventDefault(); togglePanel("git"); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "L") { e.preventDefault(); togglePanel("problems"); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "O") { e.preventDefault(); togglePanel("output"); return; }
+if (e.ctrlKey && e.shiftKey && e.key === "G") { e.preventDefault(); togglePanel("debug"); return; }
+if (e.ctrlKey && e.key === "k") { e.preventDefault(); showKeyboardShortcuts(); return; }
+if (e.ctrlKey && e.key === ",") { e.preventDefault(); togglePanel("settings"); return; }
+});
+if (splitResizerEl) {
+splitResizerEl.addEventListener("mousedown", function(e) {
+e.preventDefault();
+var startX = e.clientX;
+var startWidth = editorPaneMainEl.offsetWidth;
+function onMouseMove(e) {
+var newWidth = startWidth + (e.clientX - startX);
+if (newWidth > 100) { editorPaneMainEl.style.width = newWidth + "px"; }
+}
+function onMouseUp() {
+document.removeEventListener("mousemove", onMouseMove);
+document.removeEventListener("mouseup", onMouseUp);
+}
+document.addEventListener("mousemove", onMouseMove);
+document.addEventListener("mouseup", onMouseUp);
+});
+}
+document.addEventListener("click", function(e) {
+if (!commandPaletteEl.contains(e.target) && !e.target.closest("#btn-search")) {
+commandPaletteEl.classList.remove("open");
+}
+});
+}
+function switchPanel(panel) {
+activityBarEl.querySelectorAll(".icon-btn").forEach(function(btn) {
+btn.classList.toggle("active", btn.dataset.panel === panel);
+});
+var pixelOfficeContainer = document.getElementById("pixel-office-container");
+var editorContainer = document.getElementById("editor-container");
+var editorTabs = document.getElementById("editor-tabs");
+var toolbar = document.getElementById("toolbar");
+
+if (panel === "pixel-office") {
+    if (pixelOfficeContainer) pixelOfficeContainer.style.display = "flex";
+    if (editorContainer) editorContainer.style.display = "none";
+    if (editorTabs) editorTabs.style.display = "none";
+    if (toolbar) toolbar.style.display = "none";
+} else {
+    if (pixelOfficeContainer) pixelOfficeContainer.style.display = "none";
+    if (editorContainer) editorContainer.style.display = "flex";
+    if (editorTabs) editorTabs.style.display = "flex";
+    if (toolbar) toolbar.style.display = "flex";
+}
+
+sidebarEl.style.display = (panel === "explorer" || panel === "search" || panel === "source-control" || panel === "extensions") ? "flex" : "none";
+chatPanelEl.style.display = panel === "chat" ? "flex" : (chatPanelEl.style.display || "flex");
+terminalPanelEl.style.display = panel === "terminal" ? "flex" : (terminalPanelEl.style.display || "flex");
+agentPanelEl.style.display = panel === "agent-center" ? "flex" : "none";
+problemsPanelEl.style.display = panel === "problems" ? "block" : "none";
+outputPanelEl.style.display = panel === "output" ? "block" : "none";
+debugPanelEl.style.display = panel === "run" ? "block" : "none";
+var sidebarHeader = sidebarEl.querySelector(".sidebar-header span");
+if (sidebarHeader) {
+var names = {explorer: "Explorer", search: "Search", "source-control": "Git", run: "Run & Debug", extensions: "Extensions", chat: "Chat", terminal: "Terminal", "agent-center": "Agent Center", spaces: "Spaces", settings: "Settings", "pixel-office": "Pixel Office"};
+sidebarHeader.textContent = names[panel] || panel;
+}
+}
+function executeCommand(cmd) {
+switch(cmd) {
+case "file.new": newFile(); break;
+case "file.open": openFile(); break;
+case "file.save": saveFile(); break;
+case "edit.find": toggleFind(); break;
+case "edit.replace": toggleReplace(); break;
+case "edit.format": formatDocument(); showToast("Document formatted", "info"); break;
+case "view.sidebar": sidebarEl.style.display = sidebarEl.style.display === "none" ? "flex" : "none"; break;
+case "view.terminal": terminalPanelEl.style.display = terminalPanelEl.style.display === "none" ? "flex" : "none"; break;
+case "view.chat": chatPanelEl.style.display = chatPanelEl.style.display === "none" ? "flex" : "none"; break;
+case "view.agent": agentPanelEl.style.display = agentPanelEl.style.display === "none" ? "flex" : "none"; break;
+case "view.spaces": togglePanel("spaces"); break;
+case "view.rag": togglePanel("rag"); break;
+case "view.knowledge": togglePanel("knowledge"); break;
+case "zen.mode": toggleZenMode(); break;
+case "editor.split": toggleSplitEditor(); break;
+case "editor.minimap": toggleMinimap(); break;
+case "editor.wordwrap": toggleWordWrap(); break;
+case "editor.gotoline": goToLine(); break;
+case "editor.gotosymbol": showToast("Go to Symbol - type to filter", "info"); break;
+case "file.close": closeTab(); break;
+case "file.closeall": state.openTabs = []; state.activeTab = ""; editorEl.innerText = ""; updateTabs(); break;
+case "terminal.new": addTerminalTab(); break;
+case "terminal.clear": if (terminalOutputEl) terminalOutputEl.innerHTML = ""; break;
+case "debug.start": showToast("Debug session started", "info"); break;
+case "debug.stop": showToast("Debug session stopped", "info"); break;
+case "debug.stepover": showToast("Step Over", "info"); break;
+case "debug.stepinto": showToast("Step Into", "info"); break;
+case "debug.stepout": showToast("Step Out", "info"); break;
+case "debug.breakpoint": showToast("Breakpoint toggled", "info"); break;
+case "git.commit": showToast("Git commit opened", "info"); break;
+case "git.push": showToast("Git push started", "info"); break;
+case "git.pull": showToast("Git pull started", "info"); break;
+case "git.branch": showToast("Git branch picker opened", "info"); break;
+case "git.diff": showToast("Git diff opened", "info"); break;
+case "extension.install": showToast("Extension marketplace opened", "info"); break;
+case "settings.open": togglePanel("settings"); break;
+case "settings.keybindings": showKeyboardShortcuts(); break;
+case "help.shortcuts": showKeyboardShortcuts(); break;
+case "help.about": showToast("DevMind AI IDE v1.0.0 - Built with CodeMirror 6", "info"); break;
+default: showToast("Command: " + cmd, "info");
+}
+toggleCommandPalette();
+}
+function togglePanel(panel) {
+var panels = {settings: "settings-panel", extensions: "extensions-panel", search: "search-panel", git: "git-panel", problems: "problems-panel", output: "output-panel", debug: "debug-panel", rag: "rag-panel", knowledge: "knowledge-panel", spaces: "spaces-panel"};
+var panelId = panels[panel];
+if (panelId) {
+var el = document.getElementById(panelId);
+if (el) { el.classList.toggle("open"); }
+}
+}
+function showKeyboardShortcuts() {
+var shortcuts = [
+{keys: "Ctrl+N", action: "New File"},
+{keys: "Ctrl+O", action: "Open File"},
+{keys: "Ctrl+S", action: "Save File"},
+{keys: "Ctrl+F", action: "Find"},
+{keys: "Ctrl+H", action: "Replace"},
+{keys: "Ctrl+Z", action: "Undo"},
+{keys: "Ctrl+Y", action: "Redo"},
+{keys: "Ctrl+C", action: "Copy"},
+{keys: "Ctrl+V", action: "Paste"},
+{keys: "Ctrl+X", action: "Cut"},
+{keys: "Ctrl+A", action: "Select All"},
+{keys: "Ctrl+Shift+P", action: "Command Palette"},
+{keys: "Ctrl+B", action: "Toggle Sidebar"},
+{keys: "Ctrl+`", action: "Toggle Terminal"},
+{keys: "Ctrl+I", action: "Toggle Chat"},
+{keys: "Ctrl+Shift+A", action: "Agent Command Center"},
+{keys: "Ctrl+Shift+S", action: "Spaces"},
+{keys: "Ctrl+Shift+R", action: "RAG Search"},
+{keys: "Ctrl+Shift+K", action: "Knowledge Items"},
+{keys: "Ctrl+K Z", action: "Toggle Zen Mode"},
+{keys: "Ctrl+\\", action: "Split Editor"},
+{keys: "Ctrl+M", action: "Toggle Minimap"},
+{keys: "Alt+Z", action: "Toggle Word Wrap"},
+{keys: "Ctrl+G", action: "Go to Line"},
+{keys: "Ctrl+Shift+O", action: "Go to Symbol"},
+{keys: "Ctrl+W", action: "Close Editor"},
+{keys: "F5", action: "Start Debugging"},
+{keys: "F9", action: "Toggle Breakpoint"},
+{keys: "F10", action: "Step Over"},
+{keys: "F11", action: "Step Into"},
+{keys: "Shift+F11", action: "Step Out"},
+{keys: "Ctrl+Shift+X", action: "Extensions"},
+{keys: "Ctrl+,", action: "Settings"},
+{keys: "Ctrl+Shift+D", action: "Git Diff"},
+{keys: "Ctrl+Shift+L", action: "Problems"},
+{keys: "Ctrl+Shift+O", action: "Output"},
+{keys: "Ctrl+Shift+G", action: "Debug"},
+];
+var modal = document.createElement("div");
+modal.className = "modal-overlay";
+modal.innerHTML = '<div class="modal" style="width:500px;"><div class="modal-header"><h3>Keyboard Shortcuts</h3><button onclick="this.parentElement.parentElement.remove()">?</button></div><div class="modal-body" style="padding:0;"><table class="keybinding-table"><thead><tr><th>Shortcut</th><th>Action</th></tr></thead><tbody>' + shortcuts.map(function(s) { return '<tr><td><span class="keys">' + s.keys + "</span></td><td>" + s.action + "</td></tr>"; }).join("") + "</tbody></table></div><div class="modal-footer"><button class=\"btn btn-secondary\" onclick=\"this.parentElement.parentElement.remove()\">Close</button></div></div>";
+document.body.appendChild(modal);
+modal.addEventListener("click", function(e) {
+if (e.target === modal) modal.remove();
+});
+}
+function sendChatMessage() {
+var msg = chatInputEl.value.trim();
+if (!msg) return;
+var userMsg = document.createElement("div");
+userMsg.className = "message user";
+userMsg.textContent = msg;
+chatMessagesEl.appendChild(userMsg);
+chatInputEl.value = "";
+chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+setTimeout(function() {
+var aiMsg = document.createElement("div");
+aiMsg.className = "message assistant";
+var responses = [
+"I can help you with that. Let me analyze your code...",
+"Here is a suggestion based on your codebase context.",
+"I found a potential improvement. Would you like me to apply it?",
+"Let me search the codebase for relevant patterns.",
+"I can generate code, refactor, or debug for you. What would you like?",
+"Based on your project structure, here is my recommendation...",
+"I can run tests, lint code, or generate documentation.",
+"Let me check for any issues in your code."
+];
+aiMsg.textContent = responses[Math.floor(Math.random() * responses.length)];
+chatMessagesEl.appendChild(aiMsg);
+chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}, 500);
+}
+function executeTerminalCommand() {
+var cmd = terminalInputEl.value.trim();
+if (!cmd) return;
+var cmdLine = document.createElement("div");
+cmdLine.className = "output-line";
+cmdLine.innerHTML = '<span style="color:var(--accent-green)">$</span> ' + escapeHtml(cmd);
+terminalOutputEl.appendChild(cmdLine);
+terminalInputEl.value = "";
+terminalOutputEl.scrollTop = terminalOutputEl.scrollHeight;
+setTimeout(function() {
+var output = document.createElement("div");
+output.className = "output-line";
+if (cmd === "help") {
+output.innerHTML = "Available commands: help, ls, pwd, cat, echo, clear, python, git, npm, pip, mkdir, cd, whoami, date, uptime";
+} else if (cmd === "clear") {
+terminalOutputEl.innerHTML = "";
+return;
+} else if (cmd === "ls") {
+output.innerHTML = "README.md<br>server.py<br>agent.py<br>web/index.html<br>ast_analyzer.py<br>linter_engine.py<br>terminal_manager.py<br>knowledge_items.py<br>session_manager.py<br>agent_command_center.py<br>rag_vector_engine.py<br>project_explorer.py<br>inline_editor.py<br>completion_engine.py<br>context_manager.py<br>spaces_manager.py<br>diagnostics_panel.py<br>steering_engine.py<br>ide_bridge.py<br>deploy_panel.py<br>search_engine.py<br>workspace_index.py<br>breadcrumb_nav.py<br>mcp_server.py<br>skills/<br>artifacts/<br>setup.py<br>pyproject.toml<br>requirements.txt<br>LICENSE";
+} else if (cmd === "pwd") {
+output.textContent = "/home/user/devmind";
+} else if (cmd === "whoami") {
+output.textContent = "devmind-user";
+} else if (cmd === "date") {
+output.textContent = new Date().toISOString();
+} else {
+output.innerHTML = '<span style="color:var(--accent-yellow)">Command executed: </span>' + escapeHtml(cmd) + ' <span style="color:var(--accent-green)">(simulated)</span>';
+}
+terminalOutputEl.appendChild(output);
+terminalOutputEl.scrollTop = terminalOutputEl.scrollHeight;
+}, 300);
+}
+function addTerminalTab(name) {
+var tab = document.createElement("div");
+tab.className = "terminal-tab";
+tab.innerHTML = (name || "bash") + '<span class="close-tab" onclick="this.parentElement.remove()">?</span>';
+terminalTabsEl.appendChild(tab);
+}
+function toggleTheme() {
+document.body.classList.toggle("light-theme");
+var isDark = document.body.classList.contains("light-theme");
+showToast(isDark ? "Light theme" : "Dark theme", "info");
+}
+function showToast(message, type) {
+var toast = document.createElement("div");
+toast.className = "toast " + (type || "info");
+toast.textContent = message;
+toastContainerEl.appendChild(toast);
+setTimeout(function() {
+toast.style.opacity = "0";
+setTimeout(function() { toast.remove(); }, 300);
+}, 3000);
+}
+function escapeHtml(text) {
+var div = document.createElement("div");
+div.textContent = text;
+return div.innerHTML;
+}
+function performFind(query, direction) {
+if (!query) return;
+var text = editorEl.innerText;
+var pos = getCursorPosition();
+var idx = direction === "prev" ? text.lastIndexOf(query, pos - 1) : text.indexOf(query, pos);
+if (idx !== -1) {
+setCursorPosition(idx);
+var range = document.createRange();
+var sel = window.getSelection();
+range.setStart(editorEl.firstChild || editorEl, idx);
+range.setEnd(editorEl.firstChild || editorEl, idx + query.length);
+sel.removeAllRanges();
+sel.addRange(range);
+editorEl.focus();
+}
+}
+function performReplace(findText, replaceText, replaceAll) {
+if (!findText) return;
+var text = editorEl.innerText;
+if (replaceAll) {
+var newText = text.split(findText).join(replaceText);
+editorEl.innerText = newText;
+state.files[state.activeTab] = newText;
+showToast("Replaced all occurrences", "success");
+} else {
+var pos = getCursorPosition();
+var idx = text.indexOf(findText, pos);
+if (idx !== -1) {
+var newText = text.slice(0, idx) + replaceText + text.slice(idx + findText.length);
+editorEl.innerText = newText;
+setCursorPosition(idx + replaceText.length);
+state.files[state.activeTab] = newText;
+showToast("Replaced occurrence", "success");
+}
+}
+}
+function updateProblems() {
+state.problems = [
+{line: 5, severity: "error", message: "SyntaxError: unexpected EOF", file: "untitled.py"},
+{line: 12, severity: "warning", message: "Unused import: os", file: "untitled.py"},
+{line: 18, severity: "info", message: "Variable 'x' is assigned but never used", file: "untitled.py"}
+];
+var count = state.problems.length;
+var errors = state.problems.filter(function(p) { return p.severity === "error"; }).length;
+var warnings = state.problems.filter(function(p) { return p.severity === "warning"; }).length;
+if (problemsPanelEl) {
+problemsPanelEl.querySelector(".panel-header span").textContent = "Problems (" + errors + " errors, " + warnings + " warnings)";
+var content = problemsPanelEl.querySelector(".problems-content");
+if (content) {
+content.innerHTML = state.problems.map(function(p) {
+return '<div class="problem-item"><div class="severity ' + p.severity + '"></div><div class="message">' + escapeHtml(p.message) + "</div><div class=\"location\">Ln " + p.line + ", " + p.file + "</div></div>";
+}).join("");
+}
+}
+}
+// Agent Functions
+var agentMode = "chat";
+var agentTasks = [];
+
+function setAgentMode(mode) {
+agentMode = mode;
+document.querySelectorAll(".mode-btn").forEach(function(btn) {
+btn.classList.toggle("active", btn.dataset.mode === mode);
+});
+showToast("Agent mode: " + mode, "info");
+}
+
+async function executeAgentShortcut(shortcut) {
+var shortcuts = {
+auto_fix: {title: "Auto-Fix All Problems", description: "Run linter and auto-fix all issues", agent_role: "healer"},
+generate_tests: {title: "Generate Test Suite", description: "Generate unit tests for current file", agent_role: "reviewer"},
+refactor_selection: {title: "Refactor Selection", description: "Refactor selected code for better structure", agent_role: "coder"},
+architectural_review: {title: "Architectural Review", description: "Review project structure and suggest improvements", agent_role: "planner"},
+deploy_app: {title: "Deploy App", description: "Deploy application to Azure", agent_role: "planner"}
+};
+var config = shortcuts[shortcut];
+if (!config) return;
+addInspectorLog("Executing: " + config.title, "running");
+try {
+var resp = await fetch("/api/agent/shortcuts", {
+method: "POST",
+headers: {"Content-Type": "application/json"},
+body: JSON.stringify({shortcut: shortcut})
+});
+var data = await resp.json();
+addInspectorLog("Result: " + JSON.stringify(data), data.status === "ok" ? "success" : "error");
+showToast(config.title + " completed", data.status === "ok" ? "success" : "error");
+} catch (e) {
+addInspectorLog("Error: " + e.message, "error");
+showToast("Agent shortcut failed", "error");
+}
+}
+
+async function sendAgentChat() {
+var input = document.getElementById("agent-chat-input");
+if (!input) return;
+var msg = input.value.trim();
+if (!msg) return;
+input.value = "";
+addChatMessage("user", msg);
+addInspectorLog("User: " + msg, "running");
+try {
+var resp = await fetch("/api/agent/execute", {
+method: "POST",
+headers: {"Content-Type": "application/json"},
+body: JSON.stringify({title: msg, description: msg, agent_role: "general", requires_approval: false})
+});
+var data = await resp.json();
+addChatMessage("agent", data.status + ": " + (data.result ? data.result.output : JSON.stringify(data)));
+addInspectorLog("Agent response: " + JSON.stringify(data), "success");
+} catch (e) {
+addChatMessage("agent", "Error: " + e.message);
+addInspectorLog("Error: " + e.message, "error");
+}
+}
+
+function addChatMessage(role, content) {
+var container = document.getElementById("chat-messages");
+if (!container) return;
+var div = document.createElement("div");
+div.className = "chat-message " + role;
+div.textContent = content;
+container.appendChild(div);
+container.scrollTop = container.scrollHeight;
+}
+
+function addInspectorLog(text, type) {
+var container = document.getElementById("inspector-log");
+if (!container) return;
+var div = document.createElement("div");
+div.className = "tool-call";
+var typeClass = type === "error" ? "tool-error" : type === "success" ? "tool-result" : "tool-name";
+div.innerHTML = '<span class="' + typeClass + '">' + escapeHtml(text) + '</span>';
+container.appendChild(div);
+container.scrollTop = container.scrollHeight;
+}
+
+function updateAgentStatus() {
+fetch("/api/agent/active")
+.then(function(r) { return r.json(); })
+.then(function(data) {
+var container = document.getElementById("dag-tree");
+if (!container) return;
+if (data.status === "ok" && data.active_tasks.length > 0) {
+container.innerHTML = data.active_tasks.map(function(t) {
+return '<div class="dag-node"><span class="dag-status running"></span><span class="dag-label">' + escapeHtml(t.title) + '</span><span class="dag-role">' + t.agent_role + '</span></div>';
+}).join("");
+} else {
+container.innerHTML = '<div class="dag-node"><span class="dag-status completed"></span><span class="dag-label">No active tasks</span></div>';
+}
+})
+.catch(function() {});
+}
+
+// Auto-refresh agent status every 5 seconds
+setInterval(updateAgentStatus, 5000);
+
+// Start
+if (document.readyState === "loading") {
+document.addEventListener("DOMContentLoaded", init);
+} else {
+init();
+}
+
+// Debug/Testing Panel Functions
+function toggleDebugPanel() {
+var panel = document.getElementById("debug-panel");
+if (panel) {
+panel.classList.toggle("open");
+}
+var btn = document.getElementById("debug-toggle");
+if (btn) {
+btn.classList.toggle("active");
+}
+}
+
+function clearDebugLog() {
+var log = document.getElementById("debug-log");
+if (log) {
+log.innerHTML = '<div class="debug-entry info">Log cleared.</div>';
+}
+}
+
+function addDebugEntry(message, type) {
+var log = document.getElementById("debug-log");
+if (!log) return;
+var entry = document.createElement("div");
+entry.className = "debug-entry " + (type || "info");
+entry.textContent = new Date().toLocaleTimeString() + ": " + message;
+log.appendChild(entry);
+log.scrollTop = log.scrollHeight;
+}
+
+async function runDebugTests() {
+clearDebugLog();
+addDebugEntry("Starting debug tests...", "info");
+
+var tests = [
+{name: "GET /api/agent/active", method: "GET", url: "/api/agent/active"},
+{name: "GET /api/agent/modes", method: "GET", url: "/api/agent/modes"},
+{name: "POST /api/agent/execute (general)", method: "POST", url: "/api/agent/execute", body: {task_title: "Debug Test", task_description: "Testing debug panel", agent_role: "general", requires_approval: false}},
+{name: "POST /api/agent/execute (hermes)", method: "POST", url: "/api/agent/execute", body: {task_title: "Hermes Debug Test", task_description: "Testing hermes agent", agent_role: "hermes", requires_approval: false}},
+{name: "POST /api/agent/shortcuts (auto_fix)", method: "POST", url: "/api/agent/shortcuts", body: {shortcut: "auto_fix"}},
+{name: "POST /api/agent/shortcuts (deploy_app)", method: "POST", url: "/api/agent/shortcuts", body: {shortcut: "deploy_app"}},
+{name: "POST /api/agent/steer", method: "POST", url: "/api/agent/steer", body: {rules: ["focus on quality"]}},
+{name: "GET /api/hermes/status", method: "GET", url: "/api/hermes/status"},
+{name: "GET /api/moe/experts", method: "GET", url: "/api/moe/experts"},
+{name: "GET /api/moe/route", method: "GET", url: "/api/moe/route?task=implement feature"},
+{name: "POST /api/vlm/process", method: "POST", url: "/api/vlm/process", body: {image: "test", prompt: "describe"}},
+{name: "POST /api/mimo/process", method: "POST", url: "/api/mimo/process", body: {inputs: [{name: "in1", type: "text", data: "hello"}], task_description: "test"}},
+{name: "GET /api/streams/active", method: "GET", url: "/api/streams/active"},
+{name: "GET /api/reasoning/config", method: "GET", url: "/api/reasoning/config"},
+];
+
+var passed = 0;
+var failed = 0;
+
+for (var i = 0; i < tests.length; i++) {
+var test = tests[i];
+try {
+var options = {method: test.method, headers: {"Content-Type": "application/json"}};
+if (test.body) {
+options.body = JSON.stringify(test.body);
+}
+var resp = await fetch(test.url, options);
+var data = await resp.json();
+if (resp.status === 200) {
+addDebugEntry("PASS: " + test.name + " (" + resp.status + ")", "pass");
+passed++;
+} else {
+addDebugEntry("FAIL: " + test.name + " (" + resp.status + ")", "fail");
+failed++;
+}
+} catch (e) {
+addDebugEntry("ERROR: " + test.name + " - " + e.message, "fail");
+failed++;
+}
+}
+
+addDebugEntry("Tests complete: " + passed + " passed, " + failed + " failed", passed === tests.length ? "pass" : "fail");
+}
+
+</script>
+<!-- Debug/Testing Panel -->
+<div id="debug-panel" class="debug-panel">
+<div class="debug-panel-header">
+<span>Debug & Testing Panel</span>
+<button onclick="toggleDebugPanel()">X</button>
+</div>
+<div class="debug-panel-controls">
+<button onclick="runDebugTests()">Run Tests</button>
+<button onclick="clearDebugLog()">Clear</button>
+<button onclick="toggleDebugPanel()">Close</button>
+</div>
+<div class="debug-panel-body" id="debug-log">
+<div class="debug-entry info">Debug panel ready. Click "Run Tests" to execute endpoint tests.</div>
+</div>
+</div>
+
+<!-- Debug Panel Toggle Button -->
+<button id="debug-toggle" onclick="toggleDebugPanel()" style="position:fixed;bottom:10px;right:10px;z-index:1001;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-tertiary);color:var(--fg-secondary);cursor:pointer;font-size:11px">Debug</button>
+</body>
+</html>

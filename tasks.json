@@ -1,0 +1,74 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Database Schema Validation",
+      "instruction": "Check all database migrations in C:\\xampp\\htdocs\\apsdreamhome\\migrations for SQL syntax errors and verify schema consistency with the 597 tables.",
+      "status": "pending",
+      "priority": "high",
+      "category": "database"
+    },
+    {
+      "id": 2,
+      "title": "Security Audit - SQL Injection",
+      "instruction": "Scan all PHP files in C:\\xampp\\htdocs\\apsdreamhome\\app\\Http\\Controllers for potential SQL injection vulnerabilities. Look for unescaped user input in SQL queries.",
+      "status": "pending",
+      "priority": "critical",
+      "category": "security"
+    },
+    {
+      "id": 3,
+      "title": "Error Log Analysis",
+      "instruction": "Read and analyze C:\\xampp\\htdocs\\apsdreamhome\\storage\\logs\\error_log if it exists. Identify recurring errors and suggest fixes.",
+      "status": "pending",
+      "priority": "medium",
+      "category": "maintenance"
+    },
+    {
+      "id": 4,
+      "title": "Code Quality - Dead Code",
+      "instruction": "Identify unused functions, classes, and variables in C:\\xampp\\htdocs\\apsdreamhome\\app directory. Create a report of dead code that can be safely removed.",
+      "status": "pending",
+      "priority": "low",
+      "category": "refactoring"
+    },
+    {
+      "id": 5,
+      "title": "API Endpoint Testing",
+      "instruction": "Test critical API endpoints in C:\\xampp\\htdocs\\apsdreamhome\\routes\\api.php for proper error handling and response formats.",
+      "status": "pending",
+      "priority": "high",
+      "category": "testing"
+    },
+    {
+      "id": 6,
+      "title": "Performance - Database Indexes",
+      "instruction": "Analyze slow queries in the database and suggest missing indexes for tables in C:\\xampp\\htdocs\\apsdreamhome.",
+      "status": "pending",
+      "priority": "medium",
+      "category": "performance"
+    },
+    {
+      "id": 7,
+      "title": "Documentation Update",
+      "instruction": "Update AGENTS.md file with any recent changes made to the codebase that aren't documented yet.",
+      "status": "pending",
+      "priority": "low",
+      "category": "documentation"
+    },
+    {
+      "id": 8,
+      "title": "Dependency Check",
+      "instruction": "Check package.json and composer.json for outdated dependencies. Security vulnerabilities should be flagged.",
+      "status": "pending",
+      "priority": "medium",
+      "category": "maintenance"
+    }
+  ],
+  "schedule": {
+    "enabled": true,
+    "timeWindow": "01:00-06:00",
+    "maxTasksPerNight": 3,
+    "retryFailed": true
+  }
+}

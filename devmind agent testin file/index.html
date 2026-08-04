@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APS Dream Home | Premium Real Estate</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Three.js for 3D elements -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">APS Dream Home</div>
+        <ul class="nav-links">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#properties">Properties</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact" class="btn-primary">Contact Us</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section with 3D Canvas Background -->
+    <section id="home" class="hero">
+        <div id="canvas-container"></div>
+        <div class="hero-content">
+            <h1>Find Your Dream Home Today</h1>
+            <p>Experience luxury living with our premium real estate collections. Step into the future of home buying.</p>
+            <a href="#properties" class="btn-primary glow">Explore Properties</a>
+        </div>
+    </section>
+
+    <!-- Properties Section with 3D CSS Hover Cards -->
+    <section id="properties" class="properties-section">
+        <div class="section-title">
+            <h2>Featured Properties</h2>
+            <p>Discover our most exclusive listings.</p>
+        </div>
+        
+        <div class="cards-container">
+            <!-- Card 1 -->
+            <div class="card-3d">
+                <div class="card-inner">
+                    <div class="card-front" style="background-image: url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80');">
+                        <div class="card-info">
+                            <h3>Luxury Villa</h3>
+                            <p>$2,500,000</p>
+                        </div>
+                    </div>
+                    <div class="card-back">
+                        <h3>Luxury Villa</h3>
+                        <p>4 Beds | 3 Baths | 4,500 sqft</p>
+                        <p>Located in the heart of the city with breathtaking views and modern amenities.</p>
+                        <button class="btn-secondary">View Details</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="card-3d">
+                <div class="card-inner">
+                    <div class="card-front" style="background-image: url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80');">
+                        <div class="card-info">
+                            <h3>Modern Mansion</h3>
+                            <p>$4,200,000</p>
+                        </div>
+                    </div>
+                    <div class="card-back">
+                        <h3>Modern Mansion</h3>
+                        <p>6 Beds | 5 Baths | 7,200 sqft</p>
+                        <p>A masterpiece of modern architecture with an infinity pool and smart home features.</p>
+                        <button class="btn-secondary">View Details</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="card-3d">
+                <div class="card-inner">
+                    <div class="card-front" style="background-image: url('https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=800&q=80');">
+                        <div class="card-info">
+                            <h3>Cozy Retreat</h3>
+                            <p>$1,100,000</p>
+                        </div>
+                    </div>
+                    <div class="card-back">
+                        <h3>Cozy Retreat</h3>
+                        <p>3 Beds | 2 Baths | 2,100 sqft</p>
+                        <p>A beautiful suburban home surrounded by nature. Perfect for families.</p>
+                        <button class="btn-secondary">View Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact-section">
+        <h2>Let's Talk Real Estate</h2>
+        <form class="contact-form">
+            <input type="text" placeholder="Your Name" required>
+            <input type="email" placeholder="Your Email" required>
+            <textarea placeholder="Message" rows="5" required></textarea>
+            <button type="submit" class="btn-primary">Send Message</button>
+        </form>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>

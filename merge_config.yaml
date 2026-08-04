@@ -1,0 +1,8 @@
+model_name_or_path: Qwen/Qwen2.5-Coder-3B-Instruct
+adapter_name_or_path: devmind_tuned_model
+template: qwen
+finetuning_type: lora
+export_dir: devmind_merged_model
+export_size: 2
+export_device: cpu
+export_legacy_format: False

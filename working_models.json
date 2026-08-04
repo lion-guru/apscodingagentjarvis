@@ -1,0 +1,78 @@
+{
+  "models": [
+    {
+      "model": "google/gemini-2.5-flash",
+      "provider": "openrouter",
+      "type": "free",
+      "vision": true,
+      "speed": "fast",
+      "latency_s": 2.0
+    },
+    {
+      "model": "google/gemma-4-31b-it",
+      "provider": "openrouter",
+      "type": "free",
+      "vision": true,
+      "speed": "medium",
+      "latency_s": 2.0
+    },
+    {
+      "model": "llama-3.3-70b-versatile",
+      "provider": "groq",
+      "type": "free",
+      "vision": false,
+      "speed": "fast",
+      "latency_s": 2.0
+    },
+    {
+      "model": "llama-3.1-8b-instant",
+      "provider": "groq",
+      "type": "free",
+      "vision": false,
+      "speed": "fast",
+      "latency_s": 2.0
+    },
+    {
+      "model": "llama3.2:1b",
+      "provider": "ollama",
+      "type": "local",
+      "vision": false,
+      "speed": "fast",
+      "latency_s": 2.0
+    },
+    {
+      "model": "qwen2.5-coder:1.5b",
+      "provider": "ollama",
+      "type": "local",
+      "vision": false,
+      "speed": "fast",
+      "latency_s": 2.0
+    },
+    {
+      "model": "gemma3:1b",
+      "provider": "ollama",
+      "type": "local",
+      "vision": false,
+      "speed": "fast",
+      "latency_s": 2.0
+    },
+    {
+      "model": "hermes-3",
+      "provider": "ollama",
+      "type": "fast",
+      "vision": true,
+      "speed": "fast",
+      "latency_s": 1.5
+    },
+    {
+      "model": "mimo-v2.5-free",
+      "provider": "zen",
+      "type": "free",
+      "vision": true,
+      "speed": "medium",
+      "latency_s": 2.0
+    }
+  ],
+  "last_updated": "2026-08-04",
+  "total_models": 7
+}

@@ -1,0 +1,21 @@
+{
+  "php": {
+    "database_api": "PDO",
+    "framework": "vanilla",
+    "helper_functions": [],
+    "patterns": []
+  },
+  "javascript": {
+    "module_system": "unknown",
+    "framework": "vanilla",
+    "formatting": "unknown"
+  },
+  "css": {
+    "preprocessor": "vanilla",
+    "naming_style": "vanilla"
+  },
+  "general": {
+    "indentation": "spaces",
+    "custom_rules": []
+  }
+}

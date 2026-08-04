@@ -1,0 +1,94 @@
+# Environment & Secrets
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Large Dataset Files (too big for GitHub)
+refine_dataset.json
+refined_distilled_dataset.json
+.devmind_index.json
+
+# Logs & temp files
+*.log
+*.tmp
+real_test_report.json
+server.err
+server_error.log
+server_new.log
+server_new_error.log
+task_runner.log
+check_output.txt
+check_output2.txt
+agent_syntax_status.txt
+devmind_deep_scan_report.txt
+system_setup_status.json
+working_models.json
+
+# VS Code
+.vscode/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python cache
+*.pyc
+
+# DevMind local data (user-specific, not committed)
+~/.devmind/
+.jarvis/
+plan.md
+*.db
+*.sqlite
+*.sqlite3
+
+# Scratch / one-off fix scripts (generated during dev, not production code)
+fix_*.py
+check_*.py
+check_class*.py
+check_indent*.py
+trim_*.py
+compile_check.py
+find_append.py
+clean_index_exact.py
+rewrite_method.py
+scratch_git_commit.py
+
+# State & runtime artifacts
+state/
+third_eye_logs/
+logs/
+artifacts/
+
+# Large binaries — exceed GitHub 100MB limit (use Git LFS or exclude)
+bin/
+browsers/
+python-embedded/
+devmind_resources/binaries/
+*.exe
+*.dll
+*.wasm
+*.task
+
+# Test scripts (temp, not committed)
+test_all_tiers.py
+C:/Users/abhay/AppData/Local/Temp/opencode/test_*.py
+C:/Users/abhay/AppData/Local/Temp/opencode/debug_*.py
+C:/Users/abhay/AppData/Local/Temp/opencode/mock_*.py
+C:/Users/abhay/AppData/Local/Temp/opencode/probe_*.py
+C:/Users/abhay/AppData/Local/Temp/opencode/save_*.py
+C:/Users/abhay/AppData/Local/Temp/opencode/analyze_*.py

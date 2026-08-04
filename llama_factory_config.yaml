@@ -1,0 +1,34 @@
+# LLaMA-Factory Fine-Tuning Configuration
+model_name_or_path: google/gemma-2-2b-it
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: all
+
+# Dataset
+dataset: devmind_dataset
+dataset_dir: .
+template: gemma
+cutoff_len: 1024
+max_samples: 1000
+overwrite_cache: true
+preprocessing_num_workers: 4
+
+# Output
+output_dir: devmind_tuned_model
+logging_steps: 10
+save_steps: 100
+plot_loss: true
+overwrite_output_dir: true
+
+# Hyperparameters
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-4
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+fp16: false
+
+# Export / Device settings
+device: cpu

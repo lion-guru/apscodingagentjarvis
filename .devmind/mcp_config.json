@@ -1,0 +1,75 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "E:\\coding-assistant"
+      ],
+      "disabled": false
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "disabled": false
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "disabled": false
+    },
+    "everything": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "disabled": false
+    },
+    "git": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-git",
+        "--repository",
+        "E:\\coding-assistant"
+      ],
+      "disabled": true
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@hisma/server-puppeteer"],
+      "disabled": true
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sqlite",
+        "--db-path",
+        "E:\\coding-assistant\\.devmind\\project_memory.sqlite"
+      ],
+      "disabled": true
+    },
+    "github-cloud": {
+      "url": "https://mcp.github.com/mcp",
+      "disabled": false
+    }
+  },
+  "fallbackConfig": {
+    "enabled": true,
+    "strategy": "local-first",
+    "timeout": 30,
+    "maxRetries": 2,
+    "rules": [
+      {
+        "local": [
+          "filesystem",
+          "memory",
+          "sequential-thinking",
+          "everything"
+        ],
+        "fallback": ["github-cloud"],
+        "condition": "local_failure"
+      }
+    ]
+  }
+}

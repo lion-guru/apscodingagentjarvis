@@ -1,0 +1,282 @@
+{
+  "gemini-2.0-flash": {
+    "total_calls": 2,
+    "successful_calls": 0,
+    "failed_calls": 2,
+    "total_tokens": 0,
+    "total_time": 2.924607515335083,
+    "success_rate": 0.0,
+    "avg_time": 1.4623037576675415,
+    "task_types": {
+      "code_generation": {
+        "count": 1,
+        "success": 0,
+        "fail": 1
+      },
+      "general": {
+        "count": 1,
+        "success": 0,
+        "fail": 1
+      }
+    }
+  },
+  "llama-3.1-8b-instant": {
+    "total_calls": 12,
+    "successful_calls": 7,
+    "failed_calls": 5,
+    "total_tokens": 51479,
+    "total_time": 14.917857646942139,
+    "success_rate": 0.5833333333333334,
+    "avg_time": 1.243154803911845,
+    "task_types": {
+      "code_generation": {
+        "count": 8,
+        "success": 3,
+        "fail": 5
+      },
+      "general": {
+        "count": 3,
+        "success": 3,
+        "fail": 0
+      },
+      "file_operations": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  },
+  "llama3.2:3b": {
+    "total_calls": 2,
+    "successful_calls": 2,
+    "failed_calls": 0,
+    "total_tokens": 307,
+    "total_time": 196.28749299049377,
+    "success_rate": 1.0,
+    "avg_time": 98.14374649524689,
+    "task_types": {
+      "code_generation": {
+        "count": 2,
+        "success": 2,
+        "fail": 0
+      }
+    }
+  },
+  "llama-3.3-70b-versatile": {
+    "total_calls": 14,
+    "successful_calls": 14,
+    "failed_calls": 0,
+    "total_tokens": 99,
+    "total_time": 13.95565390586853,
+    "success_rate": 1.0,
+    "avg_time": 0.9968324218477521,
+    "task_types": {
+      "general": {
+        "count": 13,
+        "success": 13,
+        "fail": 0
+      },
+      "code_generation": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  },
+  "gemini-2.5-flash": {
+    "total_calls": 23,
+    "successful_calls": 6,
+    "failed_calls": 17,
+    "total_tokens": 64146,
+    "total_time": 86.88466501235962,
+    "success_rate": 0.2608695652173913,
+    "avg_time": 3.7775941309721572,
+    "task_types": {
+      "file_operations": {
+        "count": 4,
+        "success": 3,
+        "fail": 1
+      },
+      "general": {
+        "count": 13,
+        "success": 2,
+        "fail": 11
+      },
+      "code_generation": {
+        "count": 6,
+        "success": 1,
+        "fail": 5
+      }
+    }
+  },
+  "qwen2.5-coder:1.5b": {
+    "total_calls": 2,
+    "successful_calls": 2,
+    "failed_calls": 0,
+    "total_tokens": 118977,
+    "total_time": 85.08186554908752,
+    "success_rate": 1.0,
+    "avg_time": 42.54093277454376,
+    "task_types": {
+      "code_generation": {
+        "count": 2,
+        "success": 2,
+        "fail": 0
+      }
+    }
+  },
+  "moondream:latest": {
+    "total_calls": 4,
+    "successful_calls": 4,
+    "failed_calls": 0,
+    "total_tokens": 50783,
+    "total_time": 146.38488101959229,
+    "success_rate": 1.0,
+    "avg_time": 36.59622025489807,
+    "task_types": {
+      "code_generation": {
+        "count": 4,
+        "success": 4,
+        "fail": 0
+      }
+    }
+  },
+  "qwen/qwen-2.5-coder-32b-instruct:free": {
+    "total_calls": 1,
+    "successful_calls": 0,
+    "failed_calls": 1,
+    "total_tokens": 8,
+    "total_time": 2.0168378353118896,
+    "success_rate": 0.0,
+    "avg_time": 2.0168378353118896,
+    "task_types": {
+      "general": {
+        "count": 1,
+        "success": 0,
+        "fail": 1
+      }
+    }
+  },
+  "meta-llama/llama-3.3-70b-instruct:free": {
+    "total_calls": 1,
+    "successful_calls": 0,
+    "failed_calls": 1,
+    "total_tokens": 8,
+    "total_time": 0.49503183364868164,
+    "success_rate": 0.0,
+    "avg_time": 0.49503183364868164,
+    "task_types": {
+      "general": {
+        "count": 1,
+        "success": 0,
+        "fail": 1
+      }
+    }
+  },
+  "big-pickle": {
+    "total_calls": 12,
+    "successful_calls": 7,
+    "failed_calls": 5,
+    "total_tokens": 12879,
+    "total_time": 28.131845474243164,
+    "success_rate": 0.5833333333333334,
+    "avg_time": 2.34432045618693,
+    "task_types": {
+      "general": {
+        "count": 11,
+        "success": 6,
+        "fail": 5
+      },
+      "code_generation": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  },
+  "nemotron-3-ultra-free": {
+    "total_calls": 1,
+    "successful_calls": 1,
+    "failed_calls": 0,
+    "total_tokens": 9,
+    "total_time": 2.9104316234588623,
+    "success_rate": 1.0,
+    "avg_time": 2.9104316234588623,
+    "task_types": {
+      "general": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  },
+  "deepseek-v4-flash-free": {
+    "total_calls": 2,
+    "successful_calls": 2,
+    "failed_calls": 0,
+    "total_tokens": 12767,
+    "total_time": 32.38900136947632,
+    "success_rate": 1.0,
+    "avg_time": 16.19450068473816,
+    "task_types": {
+      "general": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      },
+      "code_generation": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  },
+  "auto/cheap": {
+    "total_calls": 10,
+    "successful_calls": 10,
+    "failed_calls": 0,
+    "total_tokens": 92,
+    "total_time": 57.80001735687256,
+    "success_rate": 1.0,
+    "avg_time": 5.7800017356872555,
+    "task_types": {
+      "general": {
+        "count": 10,
+        "success": 10,
+        "fail": 0
+      }
+    }
+  },
+  "auto/fast": {
+    "total_calls": 1,
+    "successful_calls": 1,
+    "failed_calls": 0,
+    "total_tokens": 11,
+    "total_time": 4.54584813117981,
+    "success_rate": 1.0,
+    "avg_time": 4.54584813117981,
+    "task_types": {
+      "general": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  },
+  "auto/best-coding": {
+    "total_calls": 1,
+    "successful_calls": 1,
+    "failed_calls": 0,
+    "total_tokens": 11,
+    "total_time": 5.106791019439697,
+    "success_rate": 1.0,
+    "avg_time": 5.106791019439697,
+    "task_types": {
+      "general": {
+        "count": 1,
+        "success": 1,
+        "fail": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DevMind AI IDE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/theme/material-darker.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/hint/show-hint.min.css" />
+<style>
+:root {
+--bg-primary: #0b0d19;
+--bg-secondary: #060710;
+--bg-tertiary: #161b2e;
+--bg-surface: #0e1222;
+--bg-hover: #1c233d;
+--bg-active: #273052;
+--bg-input: #0b0d19;
+--fg-primary: #f8fafc;
+--fg-secondary: #94a3b8;
+--fg-muted: #64748b;
+--accent: #00f2fe;
+--accent-hover: #38ef7d;
+--accent-green: #10b981;
+--accent-red: #f43f5e;
+--accent-yellow: #fbbf24;
+--accent-teal: #06b6d4;
+--accent-mauve: #8b5cf6;
+--border: rgba(0, 242, 254, 0.12);
+--border-active: rgba(0, 242, 254, 0.5);
+--scrollbar: rgba(0, 242, 254, 0.1);
+--scrollbar-thumb: rgba(0, 242, 254, 0.25);
+--editor-bg: #0b0d19;
+--terminal-bg: #05060d;
+--chat-bg: #0b0d19;
+--activity-bg: #060710;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-family:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;line-height:1.5}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+.title-bar{height:32px;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;flex-shrink:0;user-select:none}
+.title-bar .window-controls{display:flex;gap:8px;margin-right:12px}
+.title-bar .window-controls span{width:12px;height:12px;border-radius:50%;display:inline-block}
+.title-bar .window-controls .close{background:#f38ba8}
+.title-bar .window-controls .minimize{background:#f9e2af}
+.title-bar .window-controls .maximize{background:#a6e3a1}
+.title-bar .window-title{flex:1;text-align:center;font-size:12px;color:var(--fg-muted)}
+.title-bar .status-indicators{display:flex;gap:12px;font-size:11px;color:var(--fg-muted)}
+.title-bar .status-indicators .connected{color:var(--accent-green)}
+
+.main-layout{display:flex;flex:1;overflow:hidden}
+
+.activity-bar{width:48px;background:var(--activity-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0}
+.activity-bar .icon-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;color:var(--fg-muted);font-size:18px;transition:all 0.15s;position:relative}
+.activity-bar .icon-btn:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.activity-bar .icon-btn.active{background:var(--bg-active);color:var(--accent)}
+.activity-bar .icon-btn.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--accent);border-radius:0 3px 3px 0}
+.activity-bar .spacer{flex:1}
+
+.sidebar{width:260px;background:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sidebar-header{padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--fg-muted);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.sidebar-header .actions{display:flex;gap:6px}
+.sidebar-header .actions button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px}
+.sidebar-header .actions button:hover{color:var(--fg-primary);background:var(--bg-hover)}
+.sidebar-content{flex:1;overflow-y:auto;padding:4px 0}
+.file-tree-item{display:flex;align-items:center;gap:6px;padding:4px 12px 4px 16px;cursor:pointer;font-size:12px;color:var(--fg-secondary);transition:all 0.1s;border-left:2px solid transparent}
+.file-tree-item:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.file-tree-item.active{background:var(--bg-active);color:var(--accent);border-left-color:var(--accent)}
+.file-tree-item .icon{font-size:14px;width:16px;text-align:center}
+.file-tree-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-tree-item .badge{font-size:10px;color:var(--fg-muted);background:var(--bg-tertiary);padding:1px 5px;border-radius:3px}
+.file-tree-folder{font-weight:600;color:var(--fg-primary)}
+.symbol-item{display:flex;align-items:center;gap:6px;padding:3px 12px 3px 28px;cursor:pointer;font-size:11px;color:var(--fg-muted);transition:all 0.1s}
+.symbol-item:hover{background:var(--bg-hover);color:var(--fg-secondary)}
+.symbol-item .kind{font-size:10px;width:14px;text-align:center}
+.symbol-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.editor-tabs{display:flex;background:var(--bg-secondary);border-bottom:1px solid var(--border);height:36px;flex-shrink:0;overflow-x:auto}
+.editor-tab{display:flex;align-items:center;gap:6px;padding:0 12px;height:100%;font-size:12px;color:var(--fg-secondary);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;transition:all 0.1s;min-width:120px;max-width:200px}
+.editor-tab:hover{background:var(--bg-hover);color:var(--fg-primary)}
+.editor-tab.active{background:var(--bg-primary);color:var(--accent);border-bottom:2px solid var(--accent)}
+.editor-tab .close{font-size:10px;opacity:0.5;transition:opacity 0.1s}
+.editor-tab .close:hover{opacity:1}
+.editor-tab .modified{width:6px;height:6px;border-radius:50%;background:var(--accent-yellow);flex-shrink:0}
+.editor-wrapper{flex:1;overflow:hidden;position:relative}
+
+.CodeMirror{height:100%;font-size:14px;line-height:1.6;font-family:"Fira Code",monospace;background:var(--editor-bg);color:var(--fg-primary)}
+.CodeMirror-gutters{background:var(--bg-secondary);border-right:1px solid var(--border)}
+.CodeMirror-linenumber{color:var(--fg-muted)}
+.CodeMirror-cursor{border-left-color:var(--accent)}
+.CodeMirror-selected{background:rgba(0,242,254,0.1)}
+.CodeMirror-matchingbracket{color:var(--accent-green)!important;text-decoration:underline}
+
+.breadcrumb-bar{height:28px;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;font-size:11px;color:var(--fg-muted);gap:4px;flex-shrink:0}
+.breadcrumb-bar .crumb{color:var(--fg-secondary);cursor:pointer}
+.breadcrumb-bar .crumb:hover{color:var(--accent)}
+.breadcrumb-bar .separator{color:var(--fg-muted)}
+.breadcrumb-bar .current{color:var(--fg-primary)}
+
+.status-bar{height:24px;background:var(--bg-secondary);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;font-size:11px;color:var(--fg-muted);gap:16px;flex-shrink:0}
+.status-bar .left{display:flex;gap:16px;flex:1}
+.status-bar .right{display:flex;gap:12px;margin-left:auto}
+.status-bar .item{display:flex;align-items:center;gap:4px}
+.status-bar .model-badge{background:var(--bg-tertiary);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;color:var(--accent)}
+.status-bar .token-badge{color:var(--accent-green)}
+
+.chat-panel{width:380px;background:var(--bg-secondary);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.chat-header{padding:10px 12px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.chat-header .model-select{background:var(--bg-tertiary);border:1px solid var(--border);color:var(--fg-primary);padding:3px 8px;border-radius:4px;font-size:11px;font-family:inherit;cursor:pointer}
+.chat-messages{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+.chat-message{padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5;max-width:95%}
+.chat-message.user{background:var(--bg-tertiary);align-self:flex-end;border-bottom-right-radius:2px}
+.chat-message.assistant{background:var(--bg-surface);align-self:flex-start;border-bottom-left-radius:2px}
+.chat-message .role{font-size:10px;font-weight:600;text-transform:uppercase;margin-bottom:4px;color:var(--fg-muted)}
+.chat-message .content{white-space:pre-wrap;word-break:break-word}
+.chat-message .content code{background:var(--bg-tertiary);padding:1px 4px;border-radius:3px;font-size:11px}
+.chat-message .content pre{background:var(--bg-tertiary);padding:8px;border-radius:4px;overflow-x:auto;font-size:11px;margin:4px 0}
+.chat-message .tool-result{background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:6px 8px;margin:4px 0;font-size:11px;color:var(--fg-secondary)}
+.chat-message .diff{font-family:"Fira Code",monospace;font-size:11px;white-space:pre}
+.chat-message .diff .add{color:var(--accent-green);background:rgba(16,185,129,0.1)}
+.chat-message .diff .del{color:var(--accent-red);background:rgba(244,63,94,0.1)}
+.chat-input-area{padding:8px;border-top:1px solid var(--border);display:flex;gap:6px}
+.chat-input-area textarea{flex:1;background:var(--bg-primary);border:1px solid var(--border);color:var(--fg-primary);padding:8px 10px;border-radius:6px;font-family:inherit;font-size:12px;resize:none;height:36px;outline:none}
+.chat-input-area textarea:focus{border-color:var(--border-active)}
+.chat-input-area button{background:var(--accent);color:#000;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.chat-input-area button:hover{background:var(--accent-hover)}
+
+.terminal-panel{height:200px;background:var(--terminal-bg);border-top:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.terminal-header{padding:6px 12px;font-size:11px;font-weight:600;color:var(--fg-muted);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.terminal-header .actions button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:3px}
+.terminal-header .actions button:hover{color:var(--fg-primary);background:var(--bg-hover)}
+.terminal-output{flex:1;overflow-y:auto;padding:8px 12px;font-family:"Fira Code",monospace;font-size:11px;line-height:1.6;color:var(--fg-secondary)}
+.terminal-output .prompt{color:var(--accent-green)}
+.terminal-output .command{color:var(--fg-primary)}
+.terminal-output .output{color:var(--fg-secondary)}
+.terminal-output .error{color:var(--accent-red)}
+.terminal-input{display:flex;padding:6px 12px;border-top:1px solid var(--border);align-items:center}
+.terminal-input .prompt{color:var(--accent-green);font-family:"Fira Code",monospace;font-size:11px;margin-right:8px}
+.terminal-input input{flex:1;background:none;border:none;color:var(--fg-primary);font-family:"Fira Code",monospace;font-size:11px;outline:none}
+
+.toast-container{position:fixed;top:40px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:8px 16px;border-radius:6px;font-size:12px;font-weight:500;animation:slideIn 0.2s ease;min-width:200px;max-width:400px}
+.toast.success{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:var(--accent-green)}
+.toast.error{background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);color:var(--accent-red)}
+.toast.warning{background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);color:var(--accent-yellow)}
+.toast.info{background:rgba(0,242,254,0.1);border:1px solid rgba(0,242,254,0.2);color:var(--accent)}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9998;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h2{font-size:16px;margin-bottom:16px;color:var(--fg-primary)}
+.modal .form-group{margin-bottom:12px}
+.modal label{display:block;font-size:11px;font-weight:600;color:var(--fg-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+.modal input,.modal textarea,.modal select{width:100%;background:var(--bg-primary);border:1px solid var(--border);color:var(--fg-primary);padding:8px 10px;border-radius:6px;font-family:inherit;font-size:12px;outline:none}
+.modal input:focus,.modal textarea:focus{border-color:var(--border-active)}
+.modal .btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.modal .btn{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s}
+.modal .btn-primary{background:var(--accent);color:#000}
+.modal .btn-primary:hover{background:var(--accent-hover)}
+.modal .btn-secondary{background:var(--bg-tertiary);color:var(--fg-primary);border:1px solid var(--border)}
+.modal .btn-secondary:hover{background:var(--bg-hover)}
+
+.settings-panel{position:fixed;top:0;right:-320px;width:320px;height:100%;background:var(--bg-secondary);border-left:1px solid var(--border);z-index:100;transition:right 0.2s ease;display:flex;flex-direction:column}
+.settings-panel.open{right:0}
+.settings-panel .header{padding:12px 16px;font-size:14px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.settings-panel .header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:16px}
+.settings-panel .content{flex:1;overflow-y:auto;padding:12px 16px}
+.settings-panel .section{margin-bottom:20px}
+.settings-panel .section h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--fg-muted);margin-bottom:8px}
+.settings-panel .setting{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px}
+.settings-panel .setting label{color:var(--fg-secondary)}
+.settings-panel .toggle{width:36px;height:20px;background:var(--bg-tertiary);border-radius:10px;position:relative;cursor:pointer;border:1px solid var(--border)}
+.settings-panel .toggle.on{background:var(--accent);border-color:var(--accent)}
+.settings-panel .toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--fg-primary);transition:all 0.15s}
+.settings-panel .toggle.on::after{left:18px}
+
+.agent-panel{position:fixed;bottom:0;left:0;right:0;height:280px;background:var(--bg-secondary);border-top:1px solid var(--border);z-index:90;transform:translateY(100%);transition:transform 0.2s ease;display:flex;flex-direction:column}
+.agent-panel.open{transform:translateY(0)}
+.agent-panel .header{padding:8px 16px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.agent-panel .header button{background:none;border:none;color:var(--fg-muted);cursor:pointer;font-size:14px}
+.agent-panel .content{flex:1;overflow-y:auto;padding:8px 16px}
+.agent-panel .agent-card{background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.agent-panel .agent-card .name{font-size:12px;font-weight:600}
+.agent-panel .agent-card .status{font-size:10px;padding:2px 6px;border-radius:3px}
+.agent-panel .agent-card .status.running{background:rgba(16,185,129,0.2);color:var(--accent-green)}
+.agent-panel .agent-card .status.idle{background:rgba(100,116,139,0.2);color:var(--fg-muted)}
+.agent-panel .agent-card .status.error{background:rgba(244,63,94,0.2);color:var(--accent-red)}
+
+.diagnostics-panel{position:absolute;bottom:0;left:0;right:0;max-height:150px;background:var(--bg-secondary);border-top:1px solid var(--border);overflow-y:auto;font-size:11px;display:none}
+.diagnostics-panel.open{display:block}
+.diagnostics-panel .diagnostic{padding:3px 12px;display:flex;gap:8px;align-items:center}
+.diagnostics-panel .diagnostic.error{border-left:3px solid var(--accent-red)}
+.diagnostics-panel .diagnostic.warning{border-left:3px solid var(--accent-yellow)}
+.diagnostics-panel .diagnostic.info{border-left:3px solid var(--accent-teal)}
+.diagnostics-panel .diagnostic .line{color:var(--fg-muted);min-width:30px}
+.diagnostics-panel .diagnostic .message{color:var(--fg-secondary);flex:1}
+.diagnostics-panel .diagnostic .source{color:var(--fg-muted);font-size:10px}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.pulse{animation:pulse 1.5s infinite}
+
+.flex-1{flex:1}
+.flex-col{display:flex;flex-direction:column}
+.flex-row{display:flex;flex-direction:row}
+.items-center{align-items:center}
+.gap-2{gap:8px}
+.gap-4{gap:16px}
+.p-2{padding:8px}
+.p-4{padding:16px}
+.text-sm{font-size:12px}
+.text-xs{font-size:11px}
+.text-lg{font-size:16px}
+.font-mono{font-family:"Fira Code",monospace}
+.font-semibold{font-weight:600}
+.rounded{border-radius:6px}
+.overflow-hidden{overflow:hidden}
+.overflow-y-auto{overflow-y:auto}
+.white-space-pre{white-space:pre-wrap}
+.rag-result{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+.rag-score{color:var(--accent);font-size:11px}
+.rag-file{color:var(--fg-secondary);font-size:11px;margin:2px 0}
+.rag-snippet{color:var(--fg-muted);font-size:11px;white-space:pre-wrap}
+.ki-item{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+.ki-title{color:var(--accent);font-weight:600;margin-bottom:2px}
+.ki-content{color:var(--fg-muted);font-size:11px;white-space:pre-wrap}
+.space-item{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px}
+.space-name{color:var(--fg-primary);font-weight:500}
+.space-meta{color:var(--fg-muted);font-size:11px}
+</style>
+</head>
+<body>
+
+<!-- Title Bar -->
+<div class="title-bar">
+<div class="window-controls">
+<span class="close"></span>
+<span class="minimize"></span>
+<span class="maximize"></span>
+</div>
+<div class="window-title">DevMind AI IDE</div>
+<div class="status-indicators">
+<span id="connection-status" class="connected">Connected</span>
+<span id="model-status" class="model-badge">Gemini</span>
+<span id="token-status" class="token-badge">0 tokens</span>
+</div>
+</div>
+
+<!-- Main Layout -->
+<div class="main-layout">
+
+<!-- Activity Bar -->
+<div class="activity-bar">
+<div class="icon-btn active" data-panel="explorer" title="Explorer">&#128196;</div>
+<div class="icon-btn" data-panel="search" title="Search">&#128269;</div>
+<div class="icon-btn" data-panel="git" title="Git">&#128273;</div>
+<div class="icon-btn" data-panel="chat" title="Chat">&#128172;</div>
+<div class="icon-btn" data-panel="terminal" title="Terminal">&#9000;</div>
+<div class="icon-btn" data-panel="agents" title="Agents">&#129302;</div>
+<div class="icon-btn" data-panel="settings" title="Settings">&#9881;</div>
+<div class="spacer"></div>
+<div class="icon-btn" id="theme-toggle" title="Toggle Theme">&#127769;</div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+<div class="sidebar-header">
+<span>Explorer</span>
+<div class="actions">
+<button id="btn-new-file" title="New File">+</button>
+<button id="btn-refresh" title="Refresh">&#8635;</button>
+</div>
+</div>
+<div class="sidebar-content" id="file-tree"></div>
+</div>
+
+<!-- Editor Area -->
+<div class="editor-area">
+<div class="breadcrumb-bar" id="breadcrumb"></div>
+<div class="editor-tabs" id="editor-tabs"></div>
+<div class="editor-wrapper">
+<div id="editor-container" style="height:100%"></div>
+</div>
+<div class="diagnostics-panel" id="diagnostics-panel"></div>
+</div>
+
+<!-- Chat Panel -->
+<div class="chat-panel" id="chat-panel">
+<div class="chat-header">
+<span>AI Assistant</span>
+<select class="model-select" id="model-select">
+<option value="gemini">Gemini</option>
+<option value="groq">Groq</option>
+<option value="zen">Zen (Free)</option>
+<option value="omniroute">OmniRoute</option>
+<option value="ollama">Ollama (Local)</option>
+</select>
+</div>
+<div class="chat-messages" id="chat-messages"></div>
+<div class="chat-input-area">
+<textarea id="chat-input" placeholder="Ask DevMind anything... (Ctrl+Enter to send)" rows="1"></textarea>
+<button id="btn-send">Send</button>
+</div>
+</div>
+
+</div>
+
+<!-- Terminal Panel -->
+<div class="terminal-panel" id="terminal-panel">
+<div class="terminal-header">
+<span>Terminal</span>
+<div class="actions">
+<button id="btn-clear-terminal">Clear</button>
+<button id="btn-new-terminal">+ New</button>
+</div>
+</div>
+<div class="terminal-output" id="terminal-output"></div>
+<div class="terminal-input">
+<span class="prompt">$</span>
+<input type="text" id="terminal-input" placeholder="Type a command..." />
+</div>
+</div>
+
+<!-- Agent Command Center -->
+<div class="agent-panel" id="agent-panel">
+<div class="header">
+<span>Agent Command Center</span>
+<button id="btn-close-agents">&#10005;</button>
+</div>
+<div class="content" id="agent-list"></div>
+</div>
+
+<!-- Settings Panel -->
+<div class="settings-panel" id="settings-panel">
+<div class="header">
+<span>Settings</span>
+<button id="btn-close-settings">&#10005;</button>
+</div>
+<div class="content">
+<div class="section">
+<h3>AI Models</h3>
+<div class="setting"><label>Default Model</label><select id="setting-default-model"><option>Gemini</option><option>Groq</option><option>Zen (Free)</option><option>OmniRoute</option><option>Ollama (Local)</option></select></div>
+<div class="setting"><label>Temperature</label><input type="range" min="0" max="2" step="0.1" value="0.7" /></div>
+<div class="setting"><label>Max Tokens</label><input type="number" value="4096" min="512" max="8192" /></div>
+</div>
+<div class="section">
+<h3>Editor</h3>
+<div class="setting"><label>Font Size</label><input type="number" value="14" min="10" max="24" /></div>
+<div class="setting"><label>Tab Size</label><input type="number" value="2" min="1" max="8" /></div>
+<div class="setting"><label>Word Wrap</label><div class="toggle on" id="toggle-wordwrap"></div></div>
+<div class="setting"><label>Line Numbers</label><div class="toggle on" id="toggle-linenumbers"></div></div>
+<div class="setting"><label>Minimap</label><div class="toggle" id="toggle-minimap"></div></div>
+</div>
+<div class="section">
+<h3>Terminal</h3>
+<div class="setting"><label>Shell</label><select><option>PowerShell</option><option>CMD</option><option>Git Bash</option><option>WSL</option></select></div>
+<div class="setting"><label>Font Size</label><input type="number" value="11" min="8" max="18" /></div>
+</div>
+<div class="section">
+<h3>Workspace</h3>
+<div class="setting"><label>Workspace Root</label><input type="text" value="E:\coding-assistant" /></div>
+<div class="setting"><label>Auto-save</label><div class="toggle on" id="toggle-autosave"></div></div>
+<div class="setting"><label>RAG Indexing</label><div class="toggle on" id="toggle-rag"></div></div>
+</div>
+</div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(11,13,25,0.8);z-index:9999;justify-content:center;align-items:center;flex-direction:column;gap:16px;">
+<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+<span style="color:var(--fg-secondary);font-size:13px;">DevMind is loading...</span>
+</div>
+
+<!-- CodeMirror 6 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/hint/show-hint.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/hint/anyword-hint.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/comment/comment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/fold/foldcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/fold/xml-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/fold/indent-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/selection/active-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/scroll/annotatescrollbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/scroll/matchesonscrollbar.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/addon/scroll/cursoranim.min.js"></script>
+
+<script>
+// DevMind IDE Application
+(function() {
+  "use strict";
+
+  // State
+  var state = {
+    activeFile: null,
+    openTabs: {},
+    editor: null,
+    terminalSessions: {},
+    activeTerminal: null,
+    chatMessages: [],
+    agents: [],
+    settings: {
+      theme: 'dark',
+      fontSize: 14,
+      tabSize: 2,
+      wordWrap: true,
+      lineNumbers: true,
+      minimap: false,
+      autoSave: true,
+      ragIndexing: true
+    },
+    ws: null,
+    connected: false
+  };
+
+  // File tree data
+  var fileTree = [
+    { name: 'agent.py', type: 'file', lang: 'python', size: '232KB' },
+    { name: 'server.py', type: 'file', lang: 'python', size: '95KB' },
+    { name: 'web/', type: 'folder', children: [
+      { name: 'index.html', type: 'file', lang: 'html', size: '72KB' },
+      { name: 'enhanced_ui.html', type: 'file', lang: 'html', size: '18KB' }
+    ]},
+    { name: 'model_usage_tracker.py', type: 'file', lang: 'python', size: '8KB' },
+    { name: 'workspace_index.py', type: 'file', lang: 'python', size: '9KB' },
+    { name: 'rag_vector_engine.py', type: 'file', lang: 'python', size: '4KB' },
+    { name: 'third_eye.py', type: 'file', lang: 'python', size: '62KB' },
+    { name: 'README.md', type: 'file', lang: 'markdown', size: '5KB' },
+    { name: '.env', type: 'file', lang: 'dotenv', size: '1KB' },
+    { name: 'requirements.txt', type: 'file', lang: 'text', size: '1KB' }
+  ];
+
+  // Initialize CodeMirror editor
+  function initEditor() {
+    var container = document.getElementById('editor-container');
+    if (!container) return;
+
+    state.editor = CodeMirror(container, {
+      value: '# Welcome to DevMind AI IDE\n# Start coding or open a file from the explorer.\n\nprint("Hello, DevMind!")\n',
+      mode: 'python',
+      theme: 'material-darker',
+      lineNumbers: true,
+      tabSize: 2,
+      indentWithTabs: false,
+      lineWrapping: true,
+      autoCloseBrackets: true,
+      matchBrackets: true,
+      foldGutter: true,
+      gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+      styleActiveLine: true,
+      highlightSelectionMatches: { showToken: /\w/, annotateScroll: true },
+      cursorScrollMargin: 12,
+      extraKeys: {
+        'Ctrl-Space': 'autocomplete',
+        'Ctrl-/': 'toggleComment',
+        'Ctrl-F': function() {
+          var search = new CodeMirror.SearchCursor(state.editor, '');
+          search.findNext();
+        },
+        'Ctrl-Enter': function() { sendChatMessage(); },
+        'Ctrl-S': function(e) { e.preventDefault(); saveFile(); },
+        'Ctrl-P': function() { openFilePrompt(); }
+      },
+      placeholder: 'Start typing or open a file...'
+    });
+
+    // Update token count on change
+    state.editor.on('change', function() {
+      updateTokenStatus();
+    });
+  }
+
+  // Build file tree
+  function buildFileTree() {
+    var container = document.getElementById('file-tree');
+    if (!container) return;
+    container.innerHTML = '';
+    renderTreeItems(fileTree, container, 0);
+  }
+
+  function renderTreeItems(items, container, depth) {
+    items.forEach(function(item) {
+      var div = document.createElement('div');
+      div.className = 'file-tree-item';
+      div.style.paddingLeft = (16 + depth * 16) + 'px';
+
+      if (item.type === 'folder') {
+        div.innerHTML = '<span class="icon">&#128193;</span><span class="name file-tree-folder">' + item.name + '</span>';
+        div.addEventListener('click', function() {
+          var children = div.nextElementSibling;
+          if (children) children.style.display = children.style.display === 'none' ? 'block' : 'none';
+        });
+        container.appendChild(div);
+        if (item.children && item.children.length > 0) {
+          var childContainer = document.createElement('div');
+          childContainer.style.display = 'block';
+          renderTreeItems(item.children, childContainer, depth + 1);
+          container.appendChild(childContainer);
+        }
+      } else {
+        var icon = getFileIcon(item.name, item.lang);
+        div.innerHTML = '<span class="icon">' + icon + '</span><span class="name">' + item.name + '</span><span class="badge">' + item.size + '</span>';
+        div.addEventListener('click', function() {
+          openFile(item.name, item.lang);
+          setActiveFileItem(div);
+        });
+        container.appendChild(div);
+      }
+    });
+  }
+
+  function getFileIcon(name, lang) {
+    var icons = {
+      python: '&#128187;', html: '&#127760;', css: '&#128183;', js: '&#128295;',
+      json: '&#123;', md: '&#9998;', txt: '&#128196;', bat: '&#9000;',
+      env: '&#128274;', yml: '&#128196;', yaml: '&#128196;', xml: '&#128187;',
+      sql: '&#128451;', sh: '&#128188;', cfg: '&#9881;', ini: '&#9881;',
+      default: '&#128196;'
+    };
+    return icons[lang] || icons.default;
+  }
+
+  function setActiveFileItem(el) {
+    document.querySelectorAll('.file-tree-item').forEach(function(i) { i.classList.remove('active'); });
+    if (el) el.classList.add('active');
+  }
+
+  // Open file in editor
+  function openFile(name, lang) {
+    state.activeFile = name;
+    var mode = getMode(lang);
+    if (state.editor) {
+      state.editor.setOption('mode', mode);
+      // Load file content from server
+      fetch('/api/file/read?path=' + encodeURIComponent(name))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.status === 'ok' && data.content !== undefined) {
+            state.editor.setValue(data.content);
+          }
+        })
+        .catch(function() {});
+    }
+    updateBreadcrumb(name);
+    updateEditorTabs(name);
+  }
+
+  function getMode(lang) {
+    var modes = {
+      python: 'python', javascript: 'javascript', html: 'htmlmixed',
+      css: 'css', json: 'application/json', markdown: 'markdown',
+      text: 'text', bat: 'shell', sh: 'shell', sql: 'sql',
+      xml: 'xml', yaml: 'yaml', dotenv: 'properties'
+    };
+    return modes[lang] || 'text';
+  }
+
+  function updateBreadcrumb(path) {
+    var bc = document.getElementById('breadcrumb');
+    if (!bc) return;
+    var parts = path.split(/[\\/]/);
+    bc.innerHTML = parts.map(function(p, i) {
+      if (i === parts.length - 1) return '<span class="current">' + p + '</span>';
+      return '<span class="crumb">' + p + '</span><span class="separator">/</span>';
+    }).join('');
+  }
+
+  function updateEditorTabs(name) {
+    var tabs = document.getElementById('editor-tabs');
+    if (!tabs) return;
+    if (!state.openTabs[name]) {
+      state.openTabs[name] = { name: name, modified: false };
+    }
+    tabs.innerHTML = Object.keys(state.openTabs).map(function(n) {
+      var tab = state.openTabs[n];
+      return '<div class="editor-tab' + (n === state.activeFile ? ' active' : '') + '" data-file="' + n + '">' +
+        '<span>' + n.split(/[\\/]/).pop() + '</span>' +
+        (tab.modified ? '<span class="modified"></span>' : '') +
+        '<span class="close" data-close="' + n + '">&#10005;</span>' +
+        '</div>';
+    }).join('');
+
+    tabs.querySelectorAll('.editor-tab').forEach(function(tab) {
+      tab.addEventListener('click', function(e) {
+        if (e.target.classList.contains('close')) {
+          var fname = e.target.getAttribute('data-close');
+          closeTab(fname);
+          return;
+        }
+        var fname = tab.getAttribute('data-file');
+        if (fname) openFile(fname, getLangFromName(fname));
+      });
+    });
+  }
+
+  function closeTab(name) {
+    delete state.openTabs[name];
+    if (state.activeFile === name) {
+      var keys = Object.keys(state.openTabs);
+      state.activeFile = keys.length > 0 ? keys[0] : null;
+    }
+    updateEditorTabs(name);
+  }
+
+  function getLangFromName(name) {
+    var ext = name.split('.').pop().toLowerCase();
+    var map = { py:'python', js:'javascript', html:'html', css:'css', json:'json', md:'markdown', txt:'text', bat:'bat', sh:'sh', sql:'sql', xml:'xml', yml:'yaml', yaml:'yaml', env:'dotenv', ini:'text', cfg:'text' };
+    return map[ext] || 'text';
+  }
+
+  // Chat functionality
+  function sendChatMessage() {
+    var input = document.getElementById('chat-input');
+    if (!input) return;
+    var msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    // Add user message
+    addChatMessage('user', msg);
+
+    // Show typing indicator
+    var typing = addChatMessage('assistant', '<span class="pulse">Thinking...</span>');
+
+    // Get selected model
+    var modelSelect = document.getElementById('model-select');
+    var model = modelSelect ? modelSelect.value : 'gemini';
+
+    // Send to server
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, model: model })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' && data.response) {
+        typing.remove();
+        addChatMessage('assistant', data.response);
+      } else if (data.error) {
+        typing.remove();
+        addChatMessage('assistant', '<span style="color:var(--accent-red)">Error: ' + data.error + '</span>');
+      }
+    })
+    .catch(function() {
+      typing.remove();
+      addChatMessage('assistant', '<span style="color:var(--accent-red)">Connection error. Check server status.</span>');
+    });
+  }
+
+  function addChatMessage(role, content) {
+    var container = document.getElementById('chat-messages');
+    if (!container) return null;
+    var div = document.createElement('div');
+    div.className = 'chat-message ' + role;
+    div.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : 'DevMind') + '</div><div class="content">' + content + '</div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  // Terminal functionality
+  function initTerminal() {
+    var input = document.getElementById('terminal-input');
+    if (!input) return;
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var cmd = input.value.trim();
+        if (!cmd) return;
+        input.value = '';
+        executeTerminalCommand(cmd);
+      }
+    });
+
+    document.getElementById('btn-clear-terminal').addEventListener('click', function() {
+      var output = document.getElementById('terminal-output');
+      if (output) output.innerHTML = '';
+    });
+
+    // Execute a terminal command
+    function executeTerminalCommand(cmd) {
+      var output = document.getElementById('terminal-output');
+      if (!output) return;
+
+      // Show command
+      output.innerHTML += '<div><span class="prompt">$</span> <span class="command">' + escapeHtml(cmd) + '</span></div>';
+
+      // Send to server
+      fetch('/api/terminal/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'ok') {
+          output.innerHTML += '<div class="output">' + escapeHtml(data.output || '') + '</div>';
+        } else {
+          output.innerHTML += '<div class="error">Error: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
+        }
+        output.scrollTop = output.scrollHeight;
+      })
+      .catch(function() {
+        output.innerHTML += '<div class="error">Terminal connection error</div>';
+        output.scrollTop = output.scrollHeight;
+      });
+    }
+  }
+
+  // Settings panel
+  function initSettings() {
+    var settingsPanel = document.getElementById('settings-panel');
+    var btnClose = document.getElementById('btn-close-settings');
+    if (btnClose && settingsPanel) {
+      btnClose.addEventListener('click', function() {
+        settingsPanel.classList.remove('open');
+      });
+    }
+
+    // Toggle settings
+    document.querySelectorAll('.toggle').forEach(function(toggle) {
+      toggle.addEventListener('click', function() {
+        toggle.classList.toggle('on');
+      });
+    });
+  }
+
+  // Agent Command Center
+  function initAgentPanel() {
+    var agentPanel = document.getElementById('agent-panel');
+    var btnClose = document.getElementById('btn-close-agents');
+    if (btnClose && agentPanel) {
+      btnClose.addEventListener('click', function() {
+        agentPanel.classList.remove('open');
+      });
+    }
+
+    // Sample agents
+    state.agents = [
+      { name: 'Code Review', status: 'idle', task: 'Review code for issues' },
+      { name: 'Test Generator', status: 'idle', task: 'Generate unit tests' },
+      { name: 'Refactor Agent', status: 'idle', task: 'Refactor selected code' }
+    ];
+    renderAgentList();
+  }
+
+  function renderAgentList() {
+    var container = document.getElementById('agent-list');
+    if (!container) return;
+    container.innerHTML = state.agents.map(function(agent) {
+      return '<div class="agent-card">' +
+        '<div><div class="name">' + agent.name + '</div><div style="font-size:10px;color:var(--fg-muted)">' + agent.task + '</div></div>' +
+        '<span class="status ' + agent.status + '">' + agent.status.toUpperCase() + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Activity bar navigation
+  function initActivityBar() {
+    document.querySelectorAll('.activity-bar .icon-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        // Toggle active state
+        document.querySelectorAll('.activity-bar .icon-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+
+        var panel = btn.getAttribute('data-panel');
+        togglePanel(panel);
+      });
+    });
+  }
+
+  function togglePanel(panel) {
+    // Hide all panels
+    var panels = ['sidebar', 'chat-panel', 'terminal-panel', 'agent-panel', 'settings-panel'];
+    panels.forEach(function(p) {
+      var el = document.getElementById(p);
+      if (el) el.style.display = '';
+    });
+
+    // Show/hide based on selection
+    if (panel === 'settings') {
+      var settings = document.getElementById('settings-panel');
+      if (settings) settings.classList.toggle('open');
+    } else if (panel === 'agents') {
+      var agents = document.getElementById('agent-panel');
+      if (agents) agents.classList.toggle('open');
+    } else if (panel === 'terminal') {
+      var terminal = document.getElementById('terminal-panel');
+      if (terminal) terminal.style.display = terminal.style.display === 'none' ? 'flex' : 'none';
+    } else if (panel === 'chat') {
+      var chat = document.getElementById('chat-panel');
+      if (chat) chat.style.display = chat.style.display === 'none' ? 'flex' : 'none';
+    } else if (panel === 'search') {
+      // Toggle search in sidebar
+      var sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        var header = sidebar.querySelector('.sidebar-header');
+        if (header) header.querySelector('span').textContent = 'Search';
+      }
+    } else if (panel === 'git') {
+      // Toggle git view in sidebar
+      var sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        var header = sidebar.querySelector('.sidebar-header');
+        if (header) header.querySelector('span').textContent = 'Git';
+      }
+    }
+  }
+
+  // Toast notifications
+  function showToast(message, type) {
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + (type || 'info');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3000);
+  }
+
+  // Save file
+  function saveFile() {
+    if (!state.activeFile || !state.editor) {
+      showToast('No file to save', 'warning');
+      return;
+    }
+    var content = state.editor.getValue();
+    fetch('/api/file/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: state.activeFile, content: content })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        showToast('Saved ' + state.activeFile.split(/[\\/]/).pop(), 'success');
+        state.openTabs[state.activeFile].modified = false;
+        updateEditorTabs(state.activeFile);
+      } else {
+        showToast('Save failed', 'error');
+      }
+    })
+    .catch(function() { showToast('Error saving file', 'error'); });
+  }
+
+  // Open file prompt
+  function openFilePrompt() {
+    var name = prompt('Enter file name to open:');
+    if (name) openFile(name, getLangFromName(name));
+  }
+
+  // Update token status
+  function updateTokenStatus() {
+    var el = document.getElementById('token-status');
+    if (!el || !state.editor) return;
+    var content = state.editor.getValue();
+    var tokens = Math.ceil(content.length / 4);
+    el.textContent = tokens + ' tokens';
+  }
+
+  // WebSocket connection
+  function connect() {
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var wsUrl = protocol + '//' + window.location.host + '/ws';
+    try {
+      state.ws = new WebSocket(wsUrl);
+      state.ws.onopen = function() {
+        state.connected = true;
+        var status = document.getElementById('connection-status');
+        if (status) { status.textContent = 'Connected'; status.className = 'connected'; }
+      };
+      state.ws.onclose = function() {
+        state.connected = false;
+        var status = document.getElementById('connection-status');
+        if (status) { status.textContent = 'Disconnected'; status.className = ''; }
+      };
+      state.ws.onerror = function() {
+        state.connected = false;
+      };
+      state.ws.onmessage = function(event) {
+        try {
+          var data = JSON.parse(event.data);
+          handleWebSocketMessage(data);
+        } catch(e) {}
+      };
+    } catch(e) {}
+  }
+
+  function handleWebSocketMessage(data) {
+    if (data.type === 'chat_response') {
+      addChatMessage('assistant', data.content || '');
+    } else if (data.type === 'terminal_output') {
+      var output = document.getElementById('terminal-output');
+      if (output) {
+        output.innerHTML += '<div class="output">' + escapeHtml(data.content || '') + '</div>';
+        output.scrollTop = output.scrollHeight;
+      }
+    } else if (data.type === 'diagnostics') {
+      updateDiagnostics(data.diagnostics || []);
+    } else if (data.type === 'agent_status') {
+      updateAgentStatus(data);
+    }
+  }
+
+  function updateDiagnostics(diagnostics) {
+    var panel = document.getElementById('diagnostics-panel');
+    if (!panel) return;
+    if (diagnostics.length === 0) {
+      panel.classList.remove('open');
+      return;
+    }
+    panel.classList.add('open');
+    panel.innerHTML = diagnostics.map(function(d) {
+      var cls = d.severity === 'error' ? 'error' : d.severity === 'warning' ? 'warning' : 'info';
+      return '<div class="diagnostic ' + cls + '">' +
+        '<span class="line">' + (d.line || '') + '</span>' +
+        '<span class="message">' + escapeHtml(d.message || '') + '</span>' +
+        '<span class="source">' + escapeHtml(d.source || '') + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function updateAgentStatus(data) {
+    var agent = state.agents.find(function(a) { return a.name === data.name; });
+    if (agent) {
+      agent.status = data.status || 'idle';
+      agent.task = data.task || agent.task;
+      renderAgentList();
+    }
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Initialize everything
+  function init() {
+    initEditor();
+    buildFileTree();
+    initTerminal();
+    initSettings();
+    initAgentPanel();
+    initActivityBar();
+    connect();
+
+    // Send chat on Enter
+    var chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+      chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+    }
+
+    // Save on Ctrl+S
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+    });
+
+    // New file button
+    var btnNewFile = document.getElementById('btn-new-file');
+    if (btnNewFile) {
+      btnNewFile.addEventListener('click', function() {
+        var name = prompt('New file name:');
+        if (name) openFile(name, 'text');
+      });
+    }
+
+    // Refresh button
+    var btnRefresh = document.getElementById('btn-refresh');
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', function() {
+        buildFileTree();
+        showToast('File tree refreshed', 'info');
+      });
+    }
+
+    // Theme toggle
+    var themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', function() {
+        showToast('Theme toggle (demo)', 'info');
+      });
+    }
+
+    // Hide loading overlay
+    var overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  <!-- RAG Search Panel -->
+<div id="rag-panel" class="side-panel" style="display:none;flex-direction:column;padding:8px;gap:8px;">
+  <div class="panel-header">
+    <span>RAG Search</span>
+    <button class="btn-close" onclick="toggleRagPanel()">X</button>
+  </div>
+  <div style="display:flex;gap:4px;">
+    <input type="text" id="rag-search-input" placeholder="Search codebase..." style="flex:1;padding:4px 8px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg-primary);border-radius:4px;font-size:12px;" />
+    <button class="btn-send" onclick="performRagSearch()">Search</button>
+  </div>
+  <div id="rag-search-results" style="flex:1;overflow-y:auto;font-size:12px;">
+    <div class="no-results">Enter a query to search the codebase</div>
+  </div>
+</div>
+
+<!-- Knowledge Items Panel -->
+<div id="knowledge-panel" class="side-panel" style="display:none;flex-direction:column;padding:8px;gap:8px;">
+  <div class="panel-header">
+    <span>Knowledge Items</span>
+    <button class="btn-close" onclick="toggleKnowledgePanel()">X</button>
+  </div>
+  <div id="knowledge-items-list" style="flex:1;overflow-y:auto;font-size:12px;">
+    <div class="no-results">No knowledge items stored</div>
+  </div>
+</div>
+
+<!-- Spaces Panel -->
+<div id="spaces-panel" class="side-panel" style="display:none;flex-direction:column;padding:8px;gap:8px;">
+  <div class="panel-header">
+    <span>Spaces</span>
+    <button class="btn-close" onclick="toggleSpacesPanel()">X</button>
+  </div>
+  <div id="spaces-list" style="flex:1;overflow-y:auto;font-size:12px;">
+    <div class="no-results">No spaces created</div>
+  </div>
+</div>
+
+<script>
+// ???? RAG Search Panel ????
+function toggleRagPanel() {
+  var panel = document.getElementById('rag-panel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+}
+
+function performRagSearch() {
+  var input = document.getElementById('rag-search-input');
+  var results = document.getElementById('rag-search-results');
+  if (!input || !results) return;
+  var query = input.value.trim();
+  if (!query) return;
+  results.innerHTML = '<div class="loading">Searching...</div>';
+  fetch('/api/search?q=' + encodeURIComponent(query) + '&method=hybrid&top_k=10')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' && data.results.length > 0) {
+        results.innerHTML = data.results.map(function(r) {
+          return '<div class="rag-result">' +
+            '<div class="rag-score">Score: ' + r.score + '</div>' +
+            '<div class="rag-file">' + r.file_path + '</div>' +
+            '<div class="rag-snippet">' + escapeHtml(r.snippet) + '</div>' +
+            '</div>';
+        }).join('');
+      } else {
+        results.innerHTML = '<div class="no-results">No results found</div>';
+      }
+    })
+    .catch(function() {
+      results.innerHTML = '<div class="no-results">Search failed</div>';
+    });
+}
+
+// ???? Knowledge Items Panel ????
+function toggleKnowledgePanel() {
+  var panel = document.getElementById('knowledge-panel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+}
+
+function loadKnowledgeItems() {
+  var container = document.getElementById('knowledge-items-list');
+  if (!container) return;
+  container.innerHTML = '<div class="loading">Loading...</div>';
+  fetch('/api/knowledge/items')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' && data.items.length > 0) {
+        container.innerHTML = data.items.map(function(item) {
+          return '<div class="ki-item">' +
+            '<div class="ki-title">' + escapeHtml(item.title) + '</div>' +
+            '<div class="ki-content">' + escapeHtml(item.content.substring(0, 100)) + '</div>' +
+            '</div>';
+        }).join('');
+      } else {
+        container.innerHTML = '<div class="no-results">No knowledge items</div>';
+      }
+    })
+    .catch(function() {
+      container.innerHTML = '<div class="no-results">Failed to load</div>';
+    });
+}
+
+// ???? Spaces Panel ????
+function toggleSpacesPanel() {
+  var panel = document.getElementById('spaces-panel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+}
+
+function loadSpaces() {
+  var container = document.getElementById('spaces-list');
+  if (!container) return;
+  container.innerHTML = '<div class="loading">Loading...</div>';
+  fetch('/api/spaces/list')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' && data.spaces.length > 0) {
+        container.innerHTML = data.spaces.map(function(s) {
+          return '<div class="space-item">' +
+            '<div class="space-name">' + escapeHtml(s.name) + '</div>' +
+            '<div class="space-meta">' + s.file_count + ' files, ' + s.agent_count + ' agents</div>' +
+            '</div>';
+        }).join('');
+      } else {
+        container.innerHTML = '<div class="no-results">No spaces created</div>';
+      }
+    })
+    .catch(function() {
+      container.innerHTML = '<div class="no-results">Failed to load</div>';
+    });
+}
+
+// ???? Completion Engine Integration ????
+function requestCompletion() {
+  var editor = document.getElementById('editor');
+  if (!editor) return;
+  var value = editor.value || '';
+  var cursorPos = editor.selectionStart || value.length;
+  var line = value.substring(0, cursorPos).split('\n').pop() || '';
+  fetch('/api/completions?file_path=' + encodeURIComponent(state.currentFile || '') +
+    '&line=' + encodeURIComponent(line) +
+    '&cursor_pos=' + cursorPos +
+    '&language=python')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' && data.completions.length > 0) {
+        showToast(data.completions.length + ' completions available', 'info');
+      }
+    })
+    .catch(function() {});
+}
+
+// Keyboard shortcut for completions (Ctrl+Space)
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.code === 'Space') {
+    e.preventDefault();
+    requestCompletion();
+  }
+});
+</script>
+</body>
+</html>

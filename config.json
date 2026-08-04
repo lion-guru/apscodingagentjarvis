@@ -1,0 +1,187 @@
+{
+  "project_root": "E:\\coding-assistant",
+  "project": "DevMind AI Studio",
+  "portable_runtimes": {
+    "python": "python-embedded\\python.exe",
+    "node": "bin\\node.exe",
+    "ffmpeg": "bin\\ffmpeg.exe",
+    "chromium": "browsers\\chromium",
+    "agent_browser": "bin\\agent-browser.exe"
+  },
+  "microservices": {
+    "ide_port": 7860,
+    "agent_town_port": 3000,
+    "openai_gateway_port": 8642,
+    "auxiliary_vision_port": 6153,
+    "ollama_port": 11434
+  },
+  "skills_path": "skills",
+  "plugins_path": "plugins",
+  "scheduler": {
+    "mode": "continuous",
+    "interval": 30,
+    "max_cycles": 999
+  },
+  "e2e_tests": {
+    "command": "node bin/agent-browser.exe",
+    "timeout": 300
+  },
+  "ollama": {
+    "host": "127.0.0.1",
+    "port": 11434,
+    "model": "qwen2.5-coder:7b",
+    "timeout_ms": 30000
+  },
+  "agents": [
+    {
+      "id": "backend",
+      "name": "Backend Engineer",
+      "role": "backend",
+      "description": "FastAPI, Python, server architecture, endpoints, database scoping",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend Engineer",
+      "role": "frontend",
+      "description": "CodeMirror 6, HTML5, CSS3, Phaser 3 2D Canvas, UI event handlers",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "qa",
+      "name": "QA Engineer",
+      "role": "qa",
+      "description": "Runs E2E tests, syntax diagnostics, coverage analysis",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security Engineer",
+      "role": "security",
+      "description": "Detects secrets, API key leaks, path traversal, auth bypasses",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "devops",
+      "name": "DevOps Engineer",
+      "role": "devops",
+      "description": "Manages portable builds, PyInstaller EXE generation, venv setup",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "architecture",
+      "name": "Architecture Analyst",
+      "role": "architecture",
+      "description": "RAG vector search, context compression, Hermes trajectory strategy",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "docs",
+      "name": "Documentation Engineer",
+      "role": "docs",
+      "description": "Updates README.md, AGENTS.md, reports and changelogs",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "crm",
+      "name": "CRM Business Analyst",
+      "role": "crm",
+      "description": "Monitors CRM data integrity, lead pipeline health, and business metrics",
+      "tools": [
+        "shell",
+        "filesystem"
+      ]
+    },
+    {
+      "id": "planner",
+      "name": "Product Planner",
+      "role": "planner",
+      "description": "Web research, competitive analysis, and technical spec generation",
+      "tools": [
+        "shell",
+        "ollama"
+      ]
+    },
+    {
+      "id": "data_analyst",
+      "name": "Data Analyst",
+      "role": "data_analyst",
+      "description": "Database health monitoring, data quality, business KPIs, query performance",
+      "tools": [
+        "shell",
+        "filesystem",
+        "ollama"
+      ]
+    },
+    {
+      "id": "uiux",
+      "name": "UI/UX Engineer",
+      "role": "uiux",
+      "description": "Pixel office canvas, CodeMirror theme, layout design, audio triggers",
+      "tools": [
+        "shell",
+        "filesystem",
+        "ollama"
+      ]
+    },
+    {
+      "name": "hermes",
+      "role": "hermes",
+      "tools": [
+        "shell",
+        "filesystem",
+        "ollama",
+        "browser"
+      ],
+      "description": "High-speed execution agent with reasoning, skill execution, and tool calling"
+    },
+    {
+      "name": "moe_router",
+      "role": "moe_router",
+      "tools": [
+        "shell",
+        "ollama"
+      ],
+      "description": "Mixture of Experts router for task distribution"
+    },
+    {
+      "name": "vision",
+      "role": "vision",
+      "tools": [
+        "shell",
+        "filesystem"
+      ],
+      "description": "Third Eye Vision Language Model agent for screen and image processing"
+    },
+    {
+      "name": "reasoning",
+      "role": "reasoning",
+      "tools": [
+        "shell",
+        "ollama"
+      ],
+      "description": "Chain-of-thought reasoning agent"
+    }
+  ]
+}

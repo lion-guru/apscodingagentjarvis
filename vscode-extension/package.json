@@ -1,0 +1,53 @@
+{
+  "name": "devmind-bridge",
+  "displayName": "DevMind Bridge",
+  "description": "Connects VS Code with the local DevMind AI Coding Agent",
+  "version": "1.0.0",
+  "publisher": "devmind",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devmind-sidebar",
+          "title": "DevMind",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "devmind-sidebar": [
+        {
+          "type": "webview",
+          "id": "devmind.chatView",
+          "name": "DevMind Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "devmind.connect",
+        "title": "DevMind: Connect to Local Agent"
+      },
+      {
+        "command": "devmind.undo",
+        "title": "DevMind: Undo Last Edit"
+      }
+    ]
+  },
+  "scripts": {
+    "postinstall": "npm install ws"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}

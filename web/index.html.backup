@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevMind — Autonomous AI Agent System & IDE Control Panel</title>
+    <!-- Fonts & Monaco Loader -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs/loader.min.js" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --bg-dark: #080a10;
+            --bg-sidebar: rgba(13, 16, 27, 0.85);
+            --bg-card: rgba(20, 25, 42, 0.7);
+            --primary: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(99, 102, 241, 0.3);
+            --success: #10b981;
+            --error: #f43f5e;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 12% 15%, rgba(99, 102, 241, 0.07) 0%, transparent 45%),
+                radial-gradient(circle at 88% 85%, rgba(6, 182, 212, 0.07) 0%, transparent 45%);
+        }
+
+        /* Sidebar UI */
+        .sidebar {
+            width: 320px;
+            background: var(--bg-sidebar);
+            backdrop-filter: blur(24px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 22px;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .logo span {
+            font-size: 28px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(12px);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-glow);
+        }
+
+        .card-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        select, input, button {
+            background-color: rgba(10, 12, 20, 0.85);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            width: 100%;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        select:focus, input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px var(--primary-glow);
+            filter: brightness(1.1);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--error);
+            position: relative;
+        }
+
+        .dot::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            animation: pulse 1.8s infinite;
+            opacity: 0.4;
+            left: 0;
+            top: 0;
+        }
+
+        .dot.connected {
+            background-color: var(--success);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        /* Workspace Main Layout */
+        .workspace-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .chat-area {
+            flex: 1.2;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: rgba(8, 10, 16, 0.4);
+        }
+
+        .header {
+            padding: 16px 28px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10, 12, 20, 0.6);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 5;
+        }
+
+        .header-info h2 {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.015) 0%, transparent 70%);
+        }
+
+        .message {
+            max-width: 82%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-bubble {
+            padding: 14px 20px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+        }
+
+        .message.user .message-bubble {
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-bubble {
+            background-color: var(--bg-card);
+            border-top-left-radius: 4px;
+            border: 1px solid var(--border);
+            color: #e2e8f0;
+        }
+
+        /* Quick Prompt Templates */
+        .prompt-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+        }
+
+        .prompt-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .prompt-chip:hover {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: var(--border-glow);
+            color: white;
+        }
+
+        /* Tool Execution Terminal Cards */
+        .tool-card {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin: 10px 0;
+            overflow: hidden;
+            background: #0b0d16;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            max-width: 95%;
+        }
+
+        .tool-header {
+            background: #111422;
+            padding: 10px 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mac-dots {
+            display: flex;
+            gap: 6px;
+            margin-right: 10px;
+        }
+
+        .mac-dots span {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .mac-dots .red { background: #ff5f56; }
+        .mac-dots .yellow { background: #ffbd2e; }
+        .mac-dots .green { background: #27c93f; }
+
+        .tool-badge {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent);
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+        }
+
+        .tool-body {
+            padding: 12px 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 12.5px;
+            max-height: 240px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #94a3b8;
+            background: #07080e;
+        }
+
+        /* Input Bar */
+        .input-bar {
+            padding: 16px 28px 24px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: linear-gradient(to top, var(--bg-dark) 85%, transparent);
+            z-index: 5;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            position: relative;
+            background: rgba(20, 24, 40, 0.7);
+            border: 1px solid var(--border);
+            padding: 6px;
+            border-radius: 16px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: border-color 0.25s ease;
+        }
+
+        .input-container:focus-within {
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+        }
+
+        .input-container input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 14.5px;
+            border-radius: 10px;
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .input-container input:focus {
+            box-shadow: none;
+        }
+
+        .input-container button {
+            width: auto;
+            padding: 0 22px;
+            border-radius: 12px;
+            font-size: 14.5px;
+        }
+
+        /* Code Block Styling */
+        .code-block {
+            font-family: 'Fira Code', monospace;
+            background: #06080e;
+            padding: 14px;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow-x: auto;
+            font-size: 12.5px;
+            border: 1px solid var(--border);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+            color: #38bdf8;
+        }
+
+        .loader {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 13px;
+            margin: 10px 0;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .undo-msg {
+            background-color: rgba(16, 185, 129, 0.08);
+            border: 1px dashed rgba(16, 185, 129, 0.4);
+            color: var(--success);
+            padding: 10px 16px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Glassmorphic Settings Modal -->
+    <div id="settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(8, 10, 16, 0.7); backdrop-filter: blur(18px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="card" style="width: 520px; max-width: 92%; background: rgba(18, 22, 38, 0.95); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 28px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #a5b4fc 0%, #06b6d4 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">⚙️ DevMind Workspace Settings</h2>
+                <button onclick="closeSettingsModal()" style="width: auto; padding: 4px 10px; background: transparent; border: 1px solid var(--border); box-shadow: none; font-size: 14px;">✕</button>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 18px;">
+                <div>
+                    <label for="model-select" style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 6px;">Active AI Engine Model</label>
+                    <select id="model-select" onchange="changeModel()" aria-label="Active Model Selection">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="cwd-input" style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 6px;">Target Project Workspace Path (CWD)</label>
+                    <input type="text" id="cwd-input" placeholder="Path to project folder..." aria-label="Working Directory path input">
+                    <button onclick="changeCwd()" style="margin-top: 8px;">Update Workspace Path</button>
+                </div>
+                
+                <div>
+                    <label for="gemini-key-input" style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 6px;">Google Gemini API Key</label>
+                    <input type="password" id="gemini-key-input" placeholder="Enter Gemini API Key..." aria-label="Gemini API Key input">
+                    <button onclick="saveGeminiKey()" style="margin-top: 8px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); box-shadow: none;">Save Key</button>
+                </div>
+
+                <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 16px; display: flex; gap: 10px;">
+                    <button onclick="clearChat(); closeSettingsModal();" style="background-color: transparent; border: 1px solid var(--border); color: var(--text-muted); flex: 1; box-shadow: none;">Clear Chat Log</button>
+                    <button onclick="closeSettingsModal()" style="flex: 1;">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Manager Modal (Autonomous Sleep Mode) -->
+    <div id="tasks-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(8, 10, 16, 0.75); backdrop-filter: blur(18px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="card" style="width: 600px; max-width: 92%; max-height: 85vh; background: rgba(18, 22, 38, 0.95); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 28px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 700; color: #a5b4fc;">🌙 Autonomous Task Queue (Sleep Mode)</h2>
+                    <p style="font-size: 12px; color: var(--text-muted);">Queue tasks to run overnight without stopping</p>
+                </div>
+                <button onclick="closeTasksModal()" style="width: auto; padding: 4px 10px; background: transparent; border: 1px solid var(--border); box-shadow: none;">✕</button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <button onclick="triggerTaskRunner()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); flex: 1;">🚀 Run Sleep Mode Queue Now</button>
+                <button onclick="showAddTaskPrompt()" style="background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: var(--success); flex: 1; box-shadow: none;">➕ Add New Task</button>
+            </div>
+
+            <div id="tasks-list-container" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+                <span style="color: var(--text-muted); font-style: italic;">Loading tasks...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <span>🤖</span> DevMind
+        </div>
+
+        <div class="card" style="padding: 12px 16px;">
+            <div class="card-title">Agent Telemetry</div>
+            <div class="status-indicator">
+                <div class="dot" id="status-dot"></div>
+                <span id="status-text">Disconnected</span>
+            </div>
+            <div id="telemetry-info" style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: flex; flex-direction: column; gap: 2px;">
+                <span id="tel-stack">Tech Stack: Detecting...</span>
+                <span id="tel-mcp">MCP Servers: 14 Loaded</span>
+            </div>
+        </div>
+
+        <div class="card" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 240px;">
+            <div class="card-title">
+                <span>📁 Workspace Explorer</span>
+                <button onclick="createNewFilePrompt()" style="width: auto; padding: 2px 6px; background: transparent; border: 1px solid var(--border); box-shadow: none; font-size: 11px; border-radius: 4px;" title="Create new file">➕ File</button>
+            </div>
+            <input type="text" id="file-search" placeholder="Filter files..." oninput="filterFileTree()" style="font-size: 12px; padding: 6px 10px; margin: 4px 0 8px 0; border-radius: 8px;" aria-label="Filter file tree">
+            <div id="file-tree" style="overflow-y: auto; flex: 1; font-size: 13px; display: flex; flex-direction: column; gap: 4px; padding-right: 4px;">
+                <span style="color: var(--text-muted); font-style: italic;">No files loaded.</span>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; width: 100%;">
+            <button onclick="openSettingsModal()" style="background-color: var(--bg-card); border: 1px solid var(--border); font-size: 12.5px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: none; padding: 10px; flex: 1;">⚙️ Settings</button>
+            <button onclick="openTasksModal()" style="background-color: var(--bg-card); border: 1px solid var(--border); font-size: 12.5px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: none; padding: 10px; flex: 1;">🌙 Sleep Queue</button>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="workspace-container">
+        <!-- Main Chat Area -->
+        <div class="chat-area">
+            <div class="header">
+                <div class="header-info" style="display: flex; align-items: center; gap: 14px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h2 style="margin: 0;">AI Agent Control Panel</h2>
+                            <button onclick="changeWorkspacePrompt()" style="width: auto; padding: 4px 10px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border: 1px solid var(--primary); border-radius: 8px;" title="Switch target workspace folder">📂 Switch</button>
+                        </div>
+                        <p id="cwd-display" onclick="changeWorkspacePrompt()" style="cursor: pointer; opacity: 0.85; font-size: 12px;" title="Click to change target folder">Current: ...</p>
+                    </div>
+
+                    <label id="autopilot-label" style="display: flex; align-items: center; gap: 6px; margin-left: 8px; background: rgba(99, 102, 241, 0.1); padding: 5px 10px; border-radius: 18px; border: 1px solid rgba(99, 102, 241, 0.3); cursor: pointer;" title="Run autonomously">
+                        <input type="checkbox" id="agentic-mode-toggle" style="width: auto; margin: 0; cursor: pointer;" onchange="updateAutopilotUI()">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">🌙 Autopilot</span>
+                    </label>
+                    <label id="voice-label" style="display: flex; align-items: center; gap: 6px; margin-left: 4px; background: rgba(16, 185, 129, 0.1); padding: 5px 10px; border-radius: 18px; border: 1px solid rgba(16, 185, 129, 0.3); cursor: pointer;" title="Jarvis Voice Narration">
+                        <input type="checkbox" id="jarvis-voice-toggle" style="width: auto; margin: 0; cursor: pointer;" checked onchange="updateVoiceUI()">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">🎙️ Jarvis Voice</span>
+                    </label>
+                </div>
+                <button onclick="triggerUndo()" style="background-color: var(--warning); padding: 7px 14px; font-size: 13px;">↺ Undo Edit</button>
+            </div>
+
+            <div class="messages-container" id="messages">
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        👋 Welcome to <strong>DevMind AI Agent Workspace</strong>! I am fully equipped with Hand + Eye + Brain capabilities (14 Local MCP Servers).
+                        <br><br>
+                        Give me any instruction, ask me to audit code, run automated tests, edit files, or execute autonomous workflows.
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-bar">
+                <!-- Prompt chips -->
+                <div class="prompt-chips">
+                    <div class="prompt-chip" onclick="quickPrompt('/gsd auto Inspect project, find bugs and fix them')">🚀 /gsd auto</div>
+                    <div class="prompt-chip" onclick="quickPrompt('Diagnose all syntax and security issues in this codebase')">🔍 Audit Codebase</div>
+                    <div class="prompt-chip" onclick="quickPrompt('Run Puppeteer browser E2E test on local app')">🧪 E2E Test</div>
+                    <div class="prompt-chip" onclick="quickPrompt('Check git status and commit active changes cleanly')">🌿 Git Sync</div>
+                </div>
+
+                <!-- Image preview -->
+                <div id="image-preview-container" style="display: none; align-items: center; gap: 10px; background: var(--bg-card); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);">
+                    <img id="image-preview" src="" style="max-height: 40px; border-radius: 4px;" alt="Attached preview">
+                    <span id="image-name" style="font-size: 12px; color: var(--text-muted); flex: 1;"></span>
+                    <button onclick="clearAttachedImage()" style="width: auto; padding: 3px 8px; background: var(--error); border: none; font-size: 11px;">Remove</button>
+                </div>
+                
+                <div class="input-container">
+                    <button id="mic-btn" onclick="toggleVoiceInput()" style="background-color: var(--bg-card); border: 1px solid var(--border); width: 44px; flex-shrink: 0; padding: 0; font-size: 17px;" title="Voice input">🎙️</button>
+                    <button id="attach-btn" onclick="document.getElementById('file-input').click()" style="background-color: var(--bg-card); border: 1px solid var(--border); width: 44px; flex-shrink: 0; padding: 0; font-size: 17px;" title="Attach image/screenshot">🖼️</button>
+                    <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleImageAttach(this)" aria-label="Attach file">
+                    
+                    <input type="text" id="user-input" placeholder="Ask DevMind to edit code, run tests, or execute tasks..." onkeydown="if(event.key === 'Enter') sendMessage()" aria-label="Task input">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monaco Editor Panel -->
+        <div id="editor-panel" style="flex: 1; display: flex; flex-direction: column; background: #07090e; border-right: 1px solid var(--border);">
+            <div class="tool-header" style="background: #0d0f19; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center;">
+                    <div class="mac-dots">
+                        <span class="red"></span>
+                        <span class="yellow"></span>
+                        <span class="green"></span>
+                    </div>
+                    <span id="active-filename" style="font-size: 12.5px; font-weight: 600; color: #cbd5e1; margin-right: 12px;">Select a file to edit</span>
+                    <select id="editor-theme-select" onchange="changeEditorTheme()" style="width: auto; font-size: 10px; padding: 3px 6px; border-radius: 4px; display: none;" aria-label="Editor theme">
+                        <option value="vs-dark">Dark Theme</option>
+                        <option value="vs">Light Theme</option>
+                        <option value="hc-black">High Contrast</option>
+                    </select>
+                </div>
+                <button id="save-btn" onclick="saveActiveFile()" style="width: auto; padding: 5px 12px; font-size: 11.5px; background: var(--success); box-shadow: none; display: none;">💾 Save</button>
+            </div>
+            <div id="editor-container" style="flex: 1; width: 100%; position: relative; min-height: 200px;">
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-style: italic; gap: 8px;">
+                    <span>📝 Click any file in the workspace explorer to edit</span>
+                </div>
+            </div>
+            
+            <!-- Terminal Panel -->
+            <div id="terminal-panel" style="height: 190px; border-top: 1px solid var(--border); display: flex; flex-direction: column; background: #050609;">
+                <div class="tool-header" style="background: #080a10; padding: 6px 16px; font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>🐚 INTEGRATED TERMINAL</span>
+                        <span onclick="runQuickCmd('git status')" style="cursor: pointer; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">git status</span>
+                        <span onclick="runQuickCmd('pip list')" style="cursor: pointer; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">pip list</span>
+                    </div>
+                    <button onclick="clearTerminalOutput()" style="width: auto; padding: 2px 6px; font-size: 10px; background: transparent; border: 1px solid var(--border); box-shadow: none; color: var(--text-muted);">Clear</button>
+                </div>
+                <div id="terminal-output" style="flex: 1; overflow-y: auto; font-family: 'Fira Code', monospace; font-size: 11.5px; color: #38bdf8; padding: 8px 12px; white-space: pre-wrap; background: #030406;">DevMind Interactive Terminal ready.</div>
+                <div style="display: flex; border-top: 1px solid var(--border); background: #07080d;">
+                    <span style="color: var(--accent); padding: 6px 8px 6px 12px; font-family: 'Fira Code', monospace; font-size: 12px;">$</span>
+                    <input type="text" id="terminal-input" placeholder="Type shell command and press Enter..." onkeydown="if(event.key === 'Enter') runShellCommand()" style="flex: 1; background: transparent; border: none; font-family: 'Fira Code', monospace; font-size: 12px; padding: 6px 0; color: #cbd5e1; box-shadow: none;" aria-label="Terminal input">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Version Control -->
+    <div class="sidebar" style="width: 270px; border-left: 1px solid var(--border); border-right: none;">
+        <div class="logo" style="font-size: 17px; background: linear-gradient(135deg, var(--warning) 0%, var(--error) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+            <span>🌿</span> Version Control
+        </div>
+        
+        <div class="card" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="card-title">Uncommitted Changes</div>
+            <div id="git-status-list" style="overflow-y: auto; flex: 1; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+                <span style="color: var(--text-muted); font-style: italic;">Clean repository...</span>
+            </div>
+            <div id="git-commit-gui" style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px;">
+                <input type="text" id="git-commit-msg" placeholder="Commit message..." style="font-size: 11.5px; padding: 6px 8px; border-radius: 6px;" aria-label="Git commit message input">
+                <button onclick="executeGitCommit()" style="background: var(--success); font-size: 11.5px; padding: 7px 8px; border-radius: 6px; box-shadow: none;">Stage & Commit 🌿</button>
+            </div>
+        </div>
+
+        <div class="card" style="height: 200px; display: flex; flex-direction: column; overflow: hidden;">
+            <div class="card-title">Recent Commits</div>
+            <div id="git-commits-list" style="overflow-y: auto; flex: 1; font-size: 11.5px; display: flex; flex-direction: column; gap: 6px; font-family: monospace;">
+                <span style="color: var(--text-muted); font-style: italic;">No commits...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Logic JavaScript -->
+    <script>
+        let ws;
+        let currentModel = "llama-3.3-70b-versatile";
+        let currentCwd = "";
+        const sessionId = Math.random().toString(36).substring(7);
+        const wsUrl = `ws://${globalThis.location.host}/ws/${sessionId}`;
+        
+        const messagesDiv = document.getElementById("messages");
+        const userInput = document.getElementById("user-input");
+        const statusDot = document.getElementById("status-dot");
+        const statusText = document.getElementById("status-text");
+        const modelSelect = document.getElementById("model-select");
+        const cwdInput = document.getElementById("cwd-input");
+        const cwdDisplay = document.getElementById("cwd-display");
+
+        let currentAssistantMsg = null;
+        let currentToolCard = null;
+        let rawFilesList = [];
+
+        function connect() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                statusDot.classList.add("connected");
+                statusText.innerText = "Connected";
+                fetchModels();
+                fetchTelemetry();
+            };
+
+            ws.onclose = () => {
+                statusDot.classList.remove("connected");
+                statusText.innerText = "Disconnected";
+                setTimeout(connect, 3000);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWSMessage(data);
+            };
+        }
+
+        async function fetchModels() {
+            const geminiModels = [
+                { value: "gemini-2.0-flash",     label: "✨ Gemini 2.0 Flash (Online)" },
+                { value: "gemini-1.5-flash",     label: "🌟 Gemini 1.5 Flash (Online)" },
+                { value: "gemini-1.5-pro",       label: "💎 Gemini 1.5 Pro (Online)" },
+            ];
+
+            const openAIModels = [
+                { value: "gpt-4o",               label: "🧠 GPT-4o (OpenAI)" },
+                { value: "gpt-4o-mini",          label: "⚡ GPT-4o Mini (OpenAI)" },
+            ];
+
+            const groqModels = [
+                { value: "llama-3.3-70b-versatile", label: "⚡ Groq Llama 3.3 70B (Ultra-Fast)" },
+                { value: "llama-3.1-8b-instant",     label: "⚡ Groq Llama 3.1 8B (Instant)" },
+                { value: "mixtral-8x7b-32768",       label: "⚡ Groq Mixtral 8x7B (Ultra-Fast)" },
+            ];
+
+            const anthropicModels = [
+                { value: "claude-3-5-sonnet-latest", label: "🎨 Claude 3.5 Sonnet (Anthropic)" },
+            ];
+
+            const openRouterModels = [
+                { value: "google/gemma-2-9b-it:free",             label: "🧠 Gemma 2 9B (OpenRouter Free)" },
+                { value: "meta-llama/llama-3.2-1b-instruct:free", label: "🦙 Llama 3.2 1B (OpenRouter Free)" },
+                { value: "qwen/qwen-2.5-coder-32b-instruct",      label: "💻 Qwen 2.5 Coder 32B (OpenRouter)" },
+            ];
+
+            let ollamaModels = [];
+            try {
+                const r = await fetch("/api/models");
+                const res = await r.json();
+                if (res.models) {
+                    ollamaModels = res.models.filter(m => !m.toLowerCase().includes("gemini"));
+                }
+            } catch (e) {
+                console.error("Failed to fetch Ollama models", e);
+            }
+
+            const groqOptions = groqModels.map(g => `<option value="${g.value}">${g.label}</option>`).join("");
+            const ollamaOptions = ollamaModels.map(m => `<option value="${m}">⚡ ${m} (Local)</option>`).join("");
+            const geminiOptions = geminiModels.map(g => `<option value="${g.value}">${g.label}</option>`).join("");
+            const openAIOptions = openAIModels.map(g => `<option value="${g.value}">${g.label}</option>`).join("");
+            const anthropicOptions = anthropicModels.map(g => `<option value="${g.value}">${g.label}</option>`).join("");
+            const openRouterOptions = openRouterModels.map(or => `<option value="${or.value}">${or.label}</option>`).join("");
+
+            modelSelect.innerHTML = geminiOptions + 
+                '<option disabled>──────────────</option>' + groqOptions +
+                '<option disabled>──────────────</option>' + (ollamaOptions || '<option disabled>(No local Ollama running)</option>') + 
+                '<option disabled>──────────────</option>' + openAIOptions +
+                '<option disabled>──────────────</option>' + anthropicOptions +
+                '<option disabled>──────────────</option>' + openRouterOptions;
+
+            modelSelect.value = currentModel;
+        }
+
+        async function fetchTelemetry() {
+            try {
+                const r = await fetch("/api/agent/system_status");
+                const res = await r.json();
+                document.getElementById("tel-stack").innerText = `Stack: ${res.project_type}`;
+                document.getElementById("tel-mcp").innerText = `MCP Servers: ${res.mcp_servers_count} Configured`;
+            } catch (e) {
+                console.error("Failed telemetry fetch", e);
+            }
+        }
+
+        function handleWSMessage(data) {
+            switch (data.type) {
+                case "user_ack":
+                    break;
+                
+                case "thinking":
+                    showThinking(data.step);
+                    if (data.step === 1) {
+                        speakJarvis("Autopilot active. Analyzing task.");
+                    } else if (data.step % 5 === 0) {
+                        speakJarvis("Processing iteration " + data.step);
+                    }
+                    break;
+                
+                case "assistant_start":
+                    removeThinking();
+                    startAssistantMessage();
+                    break;
+                
+                case "token":
+                    appendAssistantToken(data.content);
+                    break;
+                
+                case "tool_start":
+                    removeThinking();
+                    startToolCard(data.tool, data.params);
+                    if (data.tool === "write_file") {
+                        speakJarvis("Writing file " + (data.params.path || "").split(/[\\/]/).pop());
+                    } else if (data.tool === "edit_file") {
+                        speakJarvis("Modifying file " + (data.params.path || "").split(/[\\/]/).pop());
+                    } else if (data.tool === "run_command") {
+                        speakJarvis("Executing command.");
+                    }
+                    break;
+                
+                case "tool_result":
+                    finishToolCard(data.result, data.success);
+                    refreshWorkspaceData(cwdInput.value);
+                    if (!data.success) {
+                        speakJarvis("Warning, tool execution returned an error.");
+                    }
+                    break;
+                
+                case "undo_result":
+                    appendUndoMessage(data.content);
+                    speakJarvis("Reverted file modifications.");
+                    break;
+                
+                case "cwd_changed":
+                    currentCwd = data.cwd;
+                    cwdDisplay.innerText = `Current: ${data.cwd}`;
+                    cwdInput.value = data.cwd;
+                    refreshWorkspaceData(data.cwd);
+                    break;
+                
+                case "model_changed":
+                    currentModel = data.model;
+                    if (modelSelect) modelSelect.value = data.model;
+                    break;
+                
+                case "info":
+                    appendInfoMessage(data.content);
+                    break;
+                
+                case "cleared":
+                    messagesDiv.innerHTML = "";
+                    break;
+                
+                case "done":
+                    removeThinking();
+                    currentAssistantMsg = null;
+                    refreshWorkspaceData(cwdInput.value);
+                    speakJarvis("Task successfully completed. Awaiting further instruction.");
+                    break;
+                
+                case "error":
+                    removeThinking();
+                    appendSystemError(data.content);
+                    speakJarvis("Warning. System error encountered.");
+                    break;
+                
+                case "show_screenshot":
+                    showBrowserScreenshot(data.url, data.base64);
+                    break;
+            }
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function quickPrompt(text) {
+            userInput.value = text;
+            userInput.focus();
+        }
+
+        function changeWorkspacePrompt() {
+            const newCwd = prompt("Enter full directory path of target workspace on your PC:", currentCwd || "C:\\xampp\\htdocs\\apsdreamhome");
+            if (newCwd && newCwd.trim()) {
+                currentCwd = newCwd.trim();
+                cwdInput.value = currentCwd;
+                changeCwd();
+            }
+        }
+
+        async function toggleDirectoryFolder(containerDiv, cwd, dirPath, depth = 1) {
+            const subContainer = containerDiv.querySelector('.sub-tree-container');
+            const folderIcon = containerDiv.querySelector('.folder-icon');
+            
+            if (subContainer) {
+                if (subContainer.style.display === 'none') {
+                    subContainer.style.display = 'block';
+                    folderIcon.innerText = '📂';
+                } else {
+                    subContainer.style.display = 'none';
+                    folderIcon.innerText = '📁';
+                }
+                return;
+            }
+            
+            folderIcon.innerText = '⏳';
+            try {
+                const r = await fetch(`/api/files?cwd=${encodeURIComponent(cwd)}&dir_path=${encodeURIComponent(dirPath)}`);
+                const data = await r.json();
+                folderIcon.innerText = '📂';
+                
+                const newSub = document.createElement('div');
+                newSub.className = 'sub-tree-container';
+                newSub.style.paddingLeft = '10px';
+                
+                if (data.files && data.files.length > 0) {
+                    newSub.innerHTML = renderFileItemsHTML(data.files, cwd, depth + 1);
+                } else {
+                    newSub.innerHTML = `<div style="color: var(--text-muted); font-style: italic; padding: 2px 6px; font-size: 11px;">(empty)</div>`;
+                }
+                containerDiv.appendChild(newSub);
+            } catch (e) {
+                folderIcon.innerText = '📁';
+                console.error("Failed to load subfolder", e);
+            }
+        }
+
+        function renderFileItemsHTML(files, cwd, depth = 0) {
+            return files.map(f => {
+                const safePath = encodeURIComponent(f.path);
+                const safeCwd = encodeURIComponent(cwd);
+                const safeName = encodeURIComponent(f.name);
+                if (f.is_dir) {
+                    return `<div class="tree-dir-node" style="display: flex; flex-direction: column;">
+                        <div onclick="toggleDirectoryFolder(this.parentElement, decodeURIComponent('${safeCwd}'), decodeURIComponent('${safePath}'), ${depth})" 
+                             style="display: flex; align-items: center; gap: 6px; color: #a5b4fc; cursor: pointer; padding: 3px 6px; border-radius: 6px; user-select: none;"
+                             onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+                            <span class="folder-icon">📁</span>
+                            <span style="font-weight: 500; font-size: 12.5px;">${f.name}</span>
+                        </div>
+                    </div>`;
+                } else {
+                    const deleteBtn = `<span onclick="event.stopPropagation(); deleteFilePrompt(decodeURIComponent('${safePath}'), decodeURIComponent('${safeName}'))" style="opacity: 0; transition: opacity 0.2s; color: var(--error); margin-left: auto; font-size: 11px;" class="delete-file-btn" title="Delete file">🗑️</span>`;
+                    return `<div onclick="openFileInEditor(decodeURIComponent('${safePath}'), decodeURIComponent('${safeName}'))" 
+                                 style="display: flex; align-items: center; gap: 6px; color: #cbd5e1; cursor: pointer; padding: 3px 6px; border-radius: 6px; font-size: 12.5px;" 
+                                 onmouseover="this.style.background='rgba(255,255,255,0.04)'; const btn = this.querySelector('.delete-file-btn'); if(btn) btn.style.opacity='1';" 
+                                 onmouseout="this.style.background='transparent'; const btn = this.querySelector('.delete-file-btn'); if(btn) btn.style.opacity='0';" 
+                                 title="${f.name}">
+                        <span>📄</span>
+                        <span style="flex: 1; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${f.name}</span>
+                        ${deleteBtn}
+                    </div>`;
+                }
+            }).join("");
+        }
+
+        function filterFileTree() {
+            const query = document.getElementById("file-search").value.toLowerCase().trim();
+            const treeDiv = document.getElementById("file-tree");
+            if (!query) {
+                treeDiv.innerHTML = renderFileItemsHTML(rawFilesList, currentCwd, 0);
+                return;
+            }
+            const filtered = rawFilesList.filter(f => f.name.toLowerCase().includes(query));
+            treeDiv.innerHTML = renderFileItemsHTML(filtered, currentCwd, 0);
+        }
+
+        async function refreshWorkspaceData(cwd) {
+            if (!cwd) return;
+            
+            // 1. Load File Tree
+            try {
+                const r = await fetch(`/api/files?cwd=${encodeURIComponent(cwd)}`);
+                const data = await r.json();
+                const treeDiv = document.getElementById("file-tree");
+                if (data.files && data.files.length > 0) {
+                    rawFilesList = data.files;
+                    treeDiv.innerHTML = renderFileItemsHTML(data.files, cwd, 0);
+                } else {
+                    rawFilesList = [];
+                    treeDiv.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">No files found</span>`;
+                }
+            } catch (e) {
+                console.error("Failed to load file tree", e);
+            }
+
+            // 2. Load Git Status
+            try {
+                const r = await fetch(`/api/git/status?cwd=${encodeURIComponent(cwd)}`);
+                const data = await r.json();
+                const statusDiv = document.getElementById("git-status-list");
+                if (data.error && (data.error.includes("not a git repository") || data.error.includes("fatal"))) {
+                    statusDiv.innerHTML = `<span style="color: var(--warning); font-style: italic;">Not a Git repository</span>`;
+                } else if (data.changes && data.changes.length > 0) {
+                    statusDiv.innerHTML = data.changes.map(c => {
+                        let statusColor = "var(--text-muted)";
+                        let label = c.status;
+                        if (c.status.includes("M")) statusColor = "var(--warning)";
+                        if (c.status.includes("A") || c.status.includes("?")) {
+                            statusColor = "var(--success)";
+                            label = "A";
+                        }
+                        if (c.status.includes("D")) statusColor = "var(--error)";
+                        return `<div style="display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 3px 0;">
+                            <span style="white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 160px; color: #cbd5e1;" title="${c.file}">${c.file}</span>
+                            <span style="background: ${statusColor}1A; color: ${statusColor}; font-weight: 700; font-size: 10.5px; padding: 2px 5px; border-radius: 4px; border: 1px solid ${statusColor}33;">${label}</span>
+                        </div>`;
+                    }).join("");
+                } else {
+                    statusDiv.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">Working tree clean</span>`;
+                }
+            } catch (e) {
+                console.error("Failed to load git status", e);
+            }
+            
+            // 3. Load Commits
+            try {
+                const r = await fetch(`/api/git/commits?cwd=${encodeURIComponent(cwd)}`);
+                const data = await r.json();
+                const commitsDiv = document.getElementById("git-commits-list");
+                if (data.error && (data.error.includes("not a git repository") || data.error.includes("fatal"))) {
+                    commitsDiv.innerHTML = `<span style="color: var(--warning); font-style: italic;">Not a Git repository</span>`;
+                } else if (data.commits && data.commits.length > 0) {
+                    commitsDiv.innerHTML = data.commits.map(c => {
+                        return `<div style="display: flex; flex-direction: column; gap: 2px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <span style="color: var(--accent); font-weight: 600; font-size: 10.5px;">[${c.sha}]</span>
+                            <span style="color: #cbd5e1; font-size: 11px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${c.message}">${c.message}</span>
+                        </div>`;
+                    }).join("");
+                } else {
+                    commitsDiv.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">No commits found</span>`;
+                }
+            } catch (e) {
+                console.error("Failed to load git commits", e);
+            }
+        }
+
+        function appendInfoMessage(content) {
+            const div = document.createElement("div");
+            div.className = "message assistant";
+            div.innerHTML = `<div class="message-bubble" style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.08); color: var(--text-muted); font-size: 12.5px; font-style: italic; padding: 6px 12px;">${content}</div>`;
+            messagesDiv.appendChild(div);
+        }
+
+        function appendUserMessage(content, imageBase64 = null) {
+            const div = document.createElement("div");
+            div.className = "message user";
+            let imgHtml = "";
+            if (imageBase64) {
+                imgHtml = `<img src="data:image/png;base64,${imageBase64}" style="max-width: 240px; border-radius: 8px; margin-bottom: 8px; display: block;">`;
+            }
+            div.innerHTML = `<div class="message-bubble">${imgHtml}${content}</div>`;
+            messagesDiv.appendChild(div);
+        }
+
+        function startAssistantMessage() {
+            if (currentAssistantMsg) return;
+            const div = document.createElement("div");
+            div.className = "message assistant";
+            div.innerHTML = `<div class="message-bubble" id="assistant-bubble-temp"></div>`;
+            messagesDiv.appendChild(div);
+            currentAssistantMsg = document.getElementById("assistant-bubble-temp");
+            currentAssistantMsg.removeAttribute("id");
+        }
+
+        function appendAssistantToken(token) {
+            if (currentAssistantMsg) {
+                let text = currentAssistantMsg.innerHTML + token;
+                currentAssistantMsg.innerHTML = text
+                    .replace(/```([\s\S]*?)```/g, '<div class="code-block">$1</div>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            }
+        }
+
+        function startToolCard(name, params) {
+            const card = document.createElement("div");
+            card.className = "tool-card";
+            card.innerHTML = `
+                <div class="tool-header">
+                    <div style="display: flex; align-items: center;">
+                        <div class="mac-dots">
+                            <span class="red"></span>
+                            <span class="yellow"></span>
+                            <span class="green"></span>
+                        </div>
+                        <span class="tool-badge">${name}</span>
+                    </div>
+                    <span class="tool-status" style="font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">Running <div class="spinner"></div></span>
+                </div>
+                <div class="tool-body">${JSON.stringify(params, null, 2)}</div>
+            `;
+            messagesDiv.appendChild(card);
+            currentToolCard = card;
+        }
+
+        function finishToolCard(result, success) {
+            if (!currentToolCard) return;
+            const status = currentToolCard.querySelector(".tool-status");
+            const body = currentToolCard.querySelector(".tool-body");
+
+            if (success) {
+                status.innerHTML = `<span style="color: var(--success); font-weight: 600;">✓ Completed</span>`;
+                currentToolCard.style.borderColor = "var(--success)";
+            } else {
+                status.innerHTML = `<span style="color: var(--error); font-weight: 600;">✗ Failed</span>`;
+                currentToolCard.style.borderColor = "var(--error)";
+            }
+
+            body.innerText = result;
+            currentToolCard = null;
+        }
+
+        function showThinking(step) {
+            removeThinking();
+            const div = document.createElement("div");
+            div.id = "thinking-loader";
+            div.className = "loader";
+            div.innerHTML = `<div class="spinner"></div> Thinking (iteration ${step})...`;
+            messagesDiv.appendChild(div);
+        }
+
+        function removeThinking() {
+            const loader = document.getElementById("thinking-loader");
+            if (loader) loader.remove();
+        }
+
+        function appendUndoMessage(msg) {
+            const div = document.createElement("div");
+            div.className = "undo-msg";
+            div.innerText = msg;
+            messagesDiv.appendChild(div);
+        }
+
+        function appendSystemError(err) {
+            const div = document.createElement("div");
+            div.className = "message assistant";
+            div.innerHTML = `<div class="message-bubble" style="border-color: var(--error); color: var(--error);">${err}</div>`;
+            messagesDiv.appendChild(div);
+        }
+
+        let attachedImageBase64 = null;
+        let attachedImageMime = null;
+
+        function handleImageAttach(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                attachedImageBase64 = e.target.result.split(',')[1];
+                attachedImageMime = file.type;
+                
+                document.getElementById("image-preview").src = e.target.result;
+                document.getElementById("image-name").innerText = file.name;
+                document.getElementById("image-preview-container").style.display = "flex";
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function clearAttachedImage() {
+            attachedImageBase64 = null;
+            attachedImageMime = null;
+            document.getElementById("file-input").value = "";
+            document.getElementById("image-preview-container").style.display = "none";
+        }
+
+        function sendMessage() {
+            const content = userInput.value.trim();
+            if (!content && !attachedImageBase64) return;
+            
+            appendUserMessage(content, attachedImageBase64);
+            
+            const isAgentic = document.getElementById("agentic-mode-toggle") ? document.getElementById("agentic-mode-toggle").checked : false;
+            
+            ws.send(JSON.stringify({
+                type: "chat",
+                content: content,
+                image: attachedImageBase64,
+                mime_type: attachedImageMime,
+                model: modelSelect.value,
+                agentic_mode: isAgentic
+            }));
+            
+            userInput.value = "";
+            clearAttachedImage();
+        }
+
+        function updateAutopilotUI() {
+            const toggle = document.getElementById("agentic-mode-toggle");
+            const label = document.getElementById("autopilot-label");
+            if (toggle && label) {
+                if (toggle.checked) {
+                    label.style.background = "rgba(245, 158, 11, 0.2)";
+                    label.style.borderColor = "var(--warning)";
+                } else {
+                    label.style.background = "rgba(99, 102, 241, 0.1)";
+                    label.style.borderColor = "rgba(99, 102, 241, 0.3)";
+                }
+            }
+        }
+
+        function updateVoiceUI() {
+            const toggle = document.getElementById("jarvis-voice-toggle");
+            const label = document.getElementById("voice-label");
+            if (toggle && label) {
+                jarvisVoiceEnabled = toggle.checked;
+                if (toggle.checked) {
+                    label.style.background = "rgba(16, 185, 129, 0.2)";
+                    label.style.borderColor = "rgba(16, 185, 129, 0.6)";
+                    speakJarvis("Jarvis voice narration activated.");
+                } else {
+                    label.style.background = "rgba(16, 185, 129, 0.1)";
+                    label.style.borderColor = "rgba(16, 185, 129, 0.3)";
+                    window.speechSynthesis.cancel();
+                }
+            }
+        }
+
+        let jarvisVoiceEnabled = true;
+        function speakJarvis(text) {
+            if (!jarvisVoiceEnabled) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                const voices = window.speechSynthesis.getVoices();
+                const preferredVoice = voices.find(v => 
+                    v.name.includes("Google US English") || 
+                    v.name.includes("David") || 
+                    v.name.includes("Microsoft David") ||
+                    v.name.includes("Natural") || 
+                    v.lang.startsWith("en")
+                );
+                if (preferredVoice) utterance.voice = preferredVoice;
+                utterance.rate = 1.05;
+                utterance.pitch = 0.95;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.error("Jarvis Speech Error:", e);
+            }
+        }
+
+        function triggerUndo() {
+            ws.send(JSON.stringify({ type: "chat", content: "/undo" }));
+        }
+
+        function changeModel() {
+            ws.send(JSON.stringify({ type: "set_model", model: modelSelect.value }));
+        }
+
+        function changeCwd() {
+            const cwd = cwdInput.value.trim();
+            if (!cwd) return;
+            ws.send(JSON.stringify({ type: "set_cwd", cwd: cwd }));
+        }
+
+        function clearChat() {
+            ws.send(JSON.stringify({ type: "clear" }));
+        }
+
+        // Speech Recognition
+        let voiceRecognition;
+        let isListening = false;
+        const micBtn = document.getElementById("mic-btn");
+
+        if ('webkitSpeechRecognition' in globalThis || 'SpeechRecognition' in globalThis) {
+            const SpeechRecognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
+            voiceRecognition = new SpeechRecognition();
+            voiceRecognition.continuous = false;
+            voiceRecognition.interimResults = false;
+            voiceRecognition.lang = 'en-US';
+
+            voiceRecognition.onstart = () => {
+                isListening = true;
+                micBtn.innerHTML = "🛑";
+                micBtn.style.backgroundColor = "var(--error)";
+                userInput.placeholder = "Listening... Speak now.";
+            };
+
+            voiceRecognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                userInput.value = text;
+                userInput.focus();
+            };
+
+            voiceRecognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                appendSystemError("Microphone error: " + event.error);
+            };
+
+            voiceRecognition.onend = () => {
+                isListening = false;
+                micBtn.innerHTML = "🎙️";
+                micBtn.style.backgroundColor = "var(--bg-card)";
+                userInput.placeholder = "Ask DevMind to edit code, run tests, or execute tasks...";
+            };
+        } else if (micBtn) {
+            micBtn.style.display = "none";
+        }
+
+        function toggleVoiceInput() {
+            if (!voiceRecognition) return;
+            if (isListening) voiceRecognition.stop();
+            else voiceRecognition.start();
+        }
+
+        // Monaco Editor Integration
+        let activeFilePath = null;
+        let monacoEditorInstance = null;
+
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            monaco.languages.registerInlineCompletionsProvider('*', {
+                provideInlineCompletions: async function (model, position, context, token) {
+                    if (!currentModel) return { items: [] };
+                    
+                    const textBeforeCursor = model.getValueInRange({
+                        startLineNumber: 1, startColumn: 1,
+                        endLineNumber: position.lineNumber, endColumn: position.column
+                    });
+                    
+                    const textAfterCursor = model.getValueInRange({
+                        startLineNumber: position.lineNumber, startColumn: position.column,
+                        endLineNumber: model.getLineCount(), endColumn: model.getLineMaxColumn(model.getLineCount())
+                    });
+
+                    try {
+                        const res = await fetch("/api/autocomplete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                model: currentModel,
+                                text_before_cursor: textBeforeCursor,
+                                text_after_cursor: textAfterCursor
+                            })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success && data.completion) {
+                            return {
+                                items: [{
+                                    insertText: data.completion,
+                                    range: new monaco.Range(
+                                        position.lineNumber, position.column,
+                                        position.lineNumber, position.column
+                                    )
+                                }]
+                            };
+                        }
+                    } catch (e) {
+                        console.error("Autocomplete error:", e);
+                    }
+                    return { items: [] };
+                },
+                freeInlineCompletions: function() {}
+            });
+        });
+
+        async function openFileInEditor(path, name) {
+            activeFilePath = path;
+            document.getElementById("active-filename").innerText = name;
+            document.getElementById("save-btn").style.display = "block";
+            document.getElementById("editor-theme-select").style.display = "inline-block";
+            
+            try {
+                const r = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
+                const data = await r.json();
+                
+                const container = document.getElementById("editor-container");
+                container.innerHTML = ""; 
+                
+                const ext = name.split('.').pop().toLowerCase();
+                let lang = "plaintext";
+                if (["js", "jsx"].includes(ext)) lang = "javascript";
+                else if (["ts", "tsx"].includes(ext)) lang = "typescript";
+                else if (["py"].includes(ext)) lang = "python";
+                else if (["html"].includes(ext)) lang = "html";
+                else if (["css"].includes(ext)) lang = "css";
+                else if (["json"].includes(ext)) lang = "json";
+                else if (["php"].includes(ext)) lang = "php";
+                else if (["go"].includes(ext)) lang = "go";
+                else if (["rs"].includes(ext)) lang = "rust";
+                else if (["md"].includes(ext)) lang = "markdown";
+                
+                if (monacoEditorInstance) {
+                    monacoEditorInstance.setValue(data.content);
+                    monaco.editor.setModelLanguage(monacoEditorInstance.getModel(), lang);
+                } else {
+                    monacoEditorInstance = monaco.editor.create(container, {
+                        value: data.content,
+                        language: lang,
+                        theme: 'vs-dark',
+                        automaticLayout: true,
+                        fontSize: 13.5,
+                        fontFamily: "'Fira Code', monospace",
+                        minimap: { enabled: false }
+                    });
+                    
+                    monacoEditorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
+                        saveActiveFile();
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load file content", e);
+            }
+        }
+
+        async function saveActiveFile() {
+            if (!activeFilePath || !monacoEditorInstance) return;
+            const content = monacoEditorInstance.getValue();
+            const btn = document.getElementById("save-btn");
+            const originalText = btn.innerText;
+            
+            btn.innerText = "⏳ Saving...";
+            btn.disabled = true;
+            
+            try {
+                const r = await fetch("/api/files/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: activeFilePath, content: content })
+                });
+                const res = await r.json();
+                if (res.success) {
+                    btn.innerText = "✅ Saved!";
+                    setTimeout(() => {
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }, 1500);
+                    refreshWorkspaceData(cwdInput.value);
+                } else {
+                    alert("Failed to save: " + res.error);
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert("Save error: " + e);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function createNewFilePrompt() {
+            const cwd = cwdInput.value.trim();
+            if (!cwd) {
+                alert("Please set a Working Directory first.");
+                return;
+            }
+            const name = prompt("Enter new file name (e.g. app.py):");
+            if (!name) return;
+            
+            const separator = cwd.includes("/") ? "/" : "\\";
+            const fullPath = cwd + (cwd.endsWith(separator) ? "" : separator) + name;
+            
+            try {
+                const r = await fetch("/api/files/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: fullPath })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    refreshWorkspaceData(cwd);
+                    openFileInEditor(fullPath, name);
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (e) {
+                alert("Create error: " + e);
+            }
+        }
+
+        async function deleteFilePrompt(path, name) {
+            if (!confirm(`Are you sure you want to delete '${name}'? File will be backed up.`)) return;
+            try {
+                const r = await fetch("/api/files/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: path })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    if (activeFilePath === path) {
+                        activeFilePath = null;
+                        document.getElementById("active-filename").innerText = "Select a file to edit";
+                        document.getElementById("save-btn").style.display = "none";
+                        document.getElementById("editor-theme-select").style.display = "none";
+                        document.getElementById("editor-container").innerHTML = `
+                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-style: italic; gap: 8px;">
+                                <span>📝 Click any file in the workspace explorer to edit</span>
+                            </div>
+                        `;
+                        monacoEditorInstance = null;
+                    }
+                    refreshWorkspaceData(cwdInput.value);
+                } else {
+                    alert("Delete failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Delete error: " + e);
+            }
+        }
+
+        async function executeGitCommit() {
+            const cwd = cwdInput.value.trim();
+            if (!cwd) return;
+            
+            const msgInput = document.getElementById("git-commit-msg");
+            let msg = msgInput.value.trim() || "chore: update workspace files";
+            
+            const btn = document.querySelector("#git-commit-gui button");
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ Committing...";
+            btn.disabled = true;
+            
+            try {
+                const r = await fetch("/api/git/commit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cwd: cwd, message: msg })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    msgInput.value = "";
+                    alert("Git Staged & Committed successfully!\n" + data.output);
+                    refreshWorkspaceData(cwd);
+                } else {
+                    alert("Commit failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Git commit error: " + e);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function changeEditorTheme() {
+            if (!monacoEditorInstance) return;
+            const theme = document.getElementById("editor-theme-select").value;
+            monaco.editor.setTheme(theme);
+        }
+
+        async function runShellCommand() {
+            const cwd = cwdInput.value.trim();
+            if (!cwd) {
+                alert("Please set a Working Directory first.");
+                return;
+            }
+            
+            const input = document.getElementById("terminal-input");
+            const command = input.value.trim();
+            if (!command) return;
+            
+            const outputDiv = document.getElementById("terminal-output");
+            outputDiv.innerHTML += `\n\n$ ${command}\n⏳ Running command...`;
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+            input.value = "";
+            
+            try {
+                const r = await fetch("/api/terminal/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cwd: cwd, command: command })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    outputDiv.innerHTML += `\n${data.output}`;
+                    if (data.error) outputDiv.innerHTML += `\n<span style="color: var(--error);">${data.error}</span>`;
+                } else {
+                    outputDiv.innerHTML += `\n<span style="color: var(--error);">Error: ${data.error}</span>`;
+                }
+                refreshWorkspaceData(cwd);
+            } catch (e) {
+                outputDiv.innerHTML += `\n<span style="color: var(--error);">Exception: ${e}</span>`;
+            }
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        function runQuickCmd(cmd) {
+            document.getElementById("terminal-input").value = cmd;
+            runShellCommand();
+        }
+
+        function clearTerminalOutput() {
+            document.getElementById("terminal-output").innerText = "Terminal cleared.";
+        }
+
+        async function saveGeminiKey() {
+            const keyInput = document.getElementById("gemini-key-input");
+            const key = keyInput.value.trim();
+            if (!key) {
+                alert("Please enter a valid API Key.");
+                return;
+            }
+            try {
+                const r = await fetch("/api/config/gemini", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ api_key: key })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    alert("Google Gemini API Key saved!");
+                    keyInput.value = "";
+                    fetchModels();
+                } else {
+                    alert("Configuration failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Configuration error: " + e);
+            }
+        }
+
+        function openSettingsModal() {
+            document.getElementById("settings-modal").style.display = "flex";
+        }
+
+        function closeSettingsModal() {
+            document.getElementById("settings-modal").style.display = "none";
+        }
+
+        // Tasks Modal (Sleep Mode)
+        async function openTasksModal() {
+            document.getElementById("tasks-modal").style.display = "flex";
+            await loadTasksList();
+        }
+
+        function closeTasksModal() {
+            document.getElementById("tasks-modal").style.display = "none";
+        }
+
+        async function loadTasksList() {
+            const container = document.getElementById("tasks-list-container");
+            try {
+                const r = await fetch("/api/tasks");
+                const res = await r.json();
+                if (res.tasks && res.tasks.length > 0) {
+                    container.innerHTML = res.tasks.map(t => {
+                        let badgeColor = "var(--warning)";
+                        if (t.status === "completed") badgeColor = "var(--success)";
+                        if (t.status === "failed") badgeColor = "var(--error)";
+                        return `<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 700; font-size: 13.5px; color: #f8fafc;">#${t.id}: ${t.title}</span>
+                                <span style="background: ${badgeColor}22; color: ${badgeColor}; border: 1px solid ${badgeColor}44; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">${t.status}</span>
+                            </div>
+                            <span style="font-size: 12.5px; color: var(--text-muted); font-family: 'Fira Code', monospace;">${t.instruction}</span>
+                        </div>`;
+                    }).join("");
+                } else {
+                    container.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">No tasks found.</span>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<span style="color: var(--error);">Error loading tasks: ${e}</span>`;
+            }
+        }
+
+        async function showAddTaskPrompt() {
+            const title = prompt("Enter Task Title (e.g., Code Quality Audit):");
+            if (!title) return;
+            const instruction = prompt("Enter Detailed Task Instruction for DevMind:");
+            if (!instruction) return;
+
+            try {
+                const r = await fetch("/api/tasks/add", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title: title, instruction: instruction })
+                });
+                const res = await r.json();
+                if (res.success) {
+                    await loadTasksList();
+                } else {
+                    alert("Error: " + res.error);
+                }
+            } catch (e) {
+                alert("Error adding task: " + e);
+            }
+        }
+
+        async function triggerTaskRunner() {
+            try {
+                const r = await fetch("/api/tasks/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ model: currentModel, cwd: currentCwd })
+                });
+                const res = await r.json();
+                if (res.success) {
+                    alert("Autonomous Task Queue Runner launched in background!");
+                    closeTasksModal();
+                } else {
+                    alert("Launch failed: " + res.error);
+                }
+            } catch (e) {
+                alert("Error launching task runner: " + e);
+            }
+        }
+
+        function showBrowserScreenshot(url, base64) {
+            const rightPanel = document.getElementById("editor-panel");
+            let preview = document.getElementById("browser-preview-container");
+            if (!preview) {
+                preview = document.createElement("div");
+                preview.id = "browser-preview-container";
+                preview.style.position = "absolute";
+                preview.style.top = "0";
+                preview.style.left = "0";
+                preview.style.width = "100%";
+                preview.style.height = "100%";
+                preview.style.backgroundColor = "rgba(8, 10, 16, 0.95)";
+                preview.style.zIndex = "100";
+                preview.style.display = "flex";
+                preview.style.flexDirection = "column";
+                
+                const header = document.createElement("div");
+                header.style.padding = "12px 18px";
+                header.style.backgroundColor = "#0f121d";
+                header.style.borderBottom = "1px solid var(--border)";
+                header.style.display = "flex";
+                header.style.justifyContent = "space-between";
+                header.style.alignItems = "center";
+                
+                const title = document.createElement("div");
+                title.id = "browser-preview-title";
+                title.style.fontWeight = "bold";
+                title.style.color = "var(--accent)";
+                title.innerText = "Browser Visual Preview";
+                
+                const closeBtn = document.createElement("button");
+                closeBtn.innerText = "✕ Close";
+                closeBtn.style.padding = "4px 10px";
+                closeBtn.style.background = "transparent";
+                closeBtn.style.border = "1px solid var(--border)";
+                closeBtn.style.color = "var(--text-main)";
+                closeBtn.style.borderRadius = "6px";
+                closeBtn.onclick = () => { preview.style.display = "none"; };
+                
+                header.appendChild(title);
+                header.appendChild(closeBtn);
+                preview.appendChild(header);
+                
+                const imgContainer = document.createElement("div");
+                imgContainer.style.flex = "1";
+                imgContainer.style.overflow = "auto";
+                imgContainer.style.padding = "16px";
+                imgContainer.style.display = "flex";
+                imgContainer.style.justifyContent = "center";
+                
+                const img = document.createElement("img");
+                img.id = "browser-preview-img";
+                img.style.maxWidth = "100%";
+                img.style.boxShadow = "0 8px 30px rgba(0,0,0,0.6)";
+                img.style.borderRadius = "10px";
+                
+                imgContainer.appendChild(img);
+                preview.appendChild(imgContainer);
+                rightPanel.appendChild(preview);
+            }
+            
+            document.getElementById("browser-preview-title").innerText = `Browser Preview: ${url}`;
+            document.getElementById("browser-preview-img").src = "data:image/png;base64," + base64;
+            preview.style.display = "flex";
+        }
+
+        // Init
+        connect();
+    </script>
+</body>
+</html>

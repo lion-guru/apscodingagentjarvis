@@ -1,0 +1,10 @@
+{
+  "devmind_dataset": {
+    "file_name": "refine_dataset.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}

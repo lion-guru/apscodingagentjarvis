@@ -1,0 +1,20 @@
+{
+  "venvPath": ".",
+  "venv": "venv",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "reportUndefinedVariable": "warning",
+  "include": [
+    "server.py",
+    "agent.py",
+    "third_eye.py",
+    "main.py"
+  ],
+  "exclude": [
+    "venv",
+    "__pycache__",
+    "node_modules"
+  ]
+}
