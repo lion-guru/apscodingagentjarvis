@@ -2,6 +2,9 @@
 .env
 *.env
 
+# Temp download folders (used by setup_dependencies.py)
+_tmp_*/
+
 # Python
 __pycache__/
 *.py[cod]
