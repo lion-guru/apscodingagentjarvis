@@ -1,0 +1,14 @@
+{
+  "failure_patterns": {
+    "network_timeout": [
+      {
+        "task": "test",
+        "error": "Connection timeout",
+        "context": "{'tool': 'terminal', 'params': {}, 'attempt': 0}",
+        "timestamp": "2026-08-05 13:41:51",
+        "occurrences": 1
+      }
+    ]
+  },
+  "healing_strategies": {}
+}

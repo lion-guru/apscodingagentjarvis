@@ -94,5 +94,46 @@ class SteeringEngine:
                         rules.append(line)
         return rules
 
+    def requires_approval(self, action: str, context: dict = None) -> bool:
+        """Check if an action requires human approval (dangerous operations)"""
+        dangerous_patterns = [
+            "sudo", "rm -rf", "git push -f", "git reset --hard",
+            "chmod 777", "chown", "systemctl", "shutdown", "reboot",
+            "format", "mkfs", "dd if=", "> /dev/",
+        ]
+        action_lower = action.lower()
+        for pattern in dangerous_patterns:
+            if pattern in action_lower:
+                return True
+        
+        tool = (context or {}).get("tool", "").lower()
+        if tool in ["bash", "terminal", "run_command"]:
+            params = (context or {}).get("params", {})
+            cmd = params.get("command", "").lower()
+            for pattern in dangerous_patterns:
+                if pattern in cmd:
+                    return True
+        
+        return False
+
 
 steering_engine = SteeringEngine()
+
+# Module-level wrapper functions for server.py compatibility
+def create_steering_file(name, content, scope="project", language=None):
+    return steering_engine.create_steering_file(name, content, scope, language)
+
+def list_steering_files():
+    return steering_engine.list_steering_files()
+
+def get_steering_file(name):
+    return steering_engine.get_steering_file(name)
+
+def update_steering_file(name, content=None, scope=None, language=None):
+    return steering_engine.update_steering_file(name, content, scope, language)
+
+def delete_steering_file(name):
+    return steering_engine.delete_steering_file(name)
+
+def requires_approval(action, context=None):
+    return steering_engine.requires_approval(action, context)

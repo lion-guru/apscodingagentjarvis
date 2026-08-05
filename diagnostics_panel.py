@@ -17,8 +17,8 @@ class DiagnosticsPanel:
     def run_linting(self, file_path: str) -> dict:
         """Run linter on a file and return diagnostics."""
         try:
-            from linter_engine import DevMindLinter
-            linter = DevMindLinter()
+            from linter_engine import LinterEngine
+            linter = LinterEngine()
             result = linter.lint_file(file_path)
 
             diagnostics = {
@@ -92,3 +92,13 @@ class DiagnosticsPanel:
 
 
 diagnostics_panel = DiagnosticsPanel()
+
+# Module-level wrapper functions for server.py compatibility
+def run_linting(file_path):
+    return diagnostics_panel.run_linting(file_path)
+
+def get_diagnostics(file_path):
+    return diagnostics_panel.get_diagnostics(file_path)
+
+def clear_diagnostics(file_path=None):
+    return diagnostics_panel.clear_diagnostics(file_path)

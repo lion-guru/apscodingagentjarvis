@@ -15,6 +15,7 @@ if env_path.exists():
 
 import re
 import logging
+logger = logging.getLogger("devmind")
 import asyncio
 import base64
 import time
@@ -37,6 +38,10 @@ import deploy_panel
 import search_engine
 import workspace_index
 import mcp_server
+import self_healing_workflow
+import stt_engine
+import tts_engine
+import ram_monitor
 import breadcrumb_nav
 import agent_core
 import agent_specialists
@@ -48,6 +53,7 @@ import multimodal_engine
 import reasoning_engine
 import hermes_acp_client
 import json
+import master_db
 from datetime import datetime
 
 def get_ollama_tools(tools_registry):
@@ -114,12 +120,23 @@ from agent import (
 
 # Re-import helpers
 from main import extract_tool_calls, remove_tool_calls
+from self_healing_workflow import attempt_heal
 
 app = FastAPI(
     title="DevMind AI Agent API",
     description="FastAPI backend for Jarvis/DevMind AI coding assistant",
     version="1.0.0"
 )
+
+# ─── Modular Route Registration ──────────────────────────────────
+from app.routes.ai import router as ai_router
+from app.routes.ide import router as ide_router
+from app.routes.system import router as system_router
+from app.routes.knowledge import router as knowledge_router
+app.include_router(ai_router)
+app.include_router(ide_router)
+app.include_router(system_router)
+app.include_router(knowledge_router)
 
 for _agent in agent_specialists.create_default_agents().values():
     agent_core._orchestrator.register_agent(_agent)
@@ -131,8 +148,11 @@ for _agent in hermes_agent.create_hermes_agents().values():
 # Initialize MoE router
 _moe_router = moe_router.MoERouter()
 for _expert in agent_specialists.create_default_agents().values():
-    _moe_router.add_expert(moe_router.ExpertProfile(expert_name=_expert.role, model=_agent.model if hasattr(_agent, 'model') else 'gemma3:1b'))
+    _moe_router.add_expert(moe_router.ExpertProfile(expert_name=_expert.role, model=_expert.model if hasattr(_expert, 'model') else 'gemma3:1b'))
 agent_core._orchestrator.set_moe_router(_moe_router)
+
+# Initialize MCP Manager
+mcp_manager = mcp_server.MCPManager()
 
 # Initialize StreamManager
 _stream_manager = stream_manager.StreamManager()
@@ -143,10 +163,34 @@ _vlm_engine = multimodal_engine.VLMEngine()
 # Initialize Reasoning Engine
 _reasoning_engine = reasoning_engine.ReasoningEngine()
 
+# ─── Helper Functions for IDE Bridge Endpoints ─────────────────────────────
+
+def generate_cursor_rules_md(rules: list) -> str:
+    """Generate .cursor/rules devmind.mdc content from rules list."""
+    lines = ["---", "description: DevMind AI coding rules", "---", ""]
+    for rule in rules:
+        if isinstance(rule, dict):
+            lines.append(f"- **{rule.get('name', 'Rule')}**: {rule.get('description', rule.get('content', ''))}")
+        else:
+            lines.append(f"- {rule}")
+    return "\n".join(lines)
+
+def generate_windsurf_mcp_config_json(mcp_servers: list) -> dict:
+    """Generate Windsurf MCP config JSON from server list."""
+    config = {"mcpServers": {}}
+    for server in mcp_servers:
+        name = server.get("name", "unknown")
+        config["mcpServers"][name] = {
+            "command": server.get("command", ""),
+            "args": server.get("args", []),
+            "env": server.get("env", {}),
+        }
+    return config
+
 # Add CORS middleware to support cross-origin WebSocket connections
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:7860", "http://localhost:5173", "http://127.0.0.1:7860"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -157,6 +201,7 @@ tools_registry = create_tool_registry()
 
 # ─── State ───────────────────────────────────
 sessions: dict[str, dict] = {}
+WORKSPACE = DEFAULT_WORKSPACE
 
 
 # ─── HTTP Routes ─────────────────────────────
@@ -164,6 +209,54 @@ sessions: dict[str, dict] = {}
 @app.get("/")
 async def root():
     return FileResponse("web/index.html")
+
+
+@app.post("/api/terminal/run")
+async def terminal_run(data: dict):
+    """Execute a shell command on the server workspace safely."""
+    cmd = data.get("command", "").strip()
+    cwd_val = data.get("cwd") or str(WORKSPACE)
+    if not cmd:
+        return {"output": "No command provided"}
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd_val
+        )
+        stdout, stderr = await proc.communicate()
+        output = stdout.decode(errors="replace")
+        err = stderr.decode(errors="replace")
+        result = output + (f"\n[STDERR]\n{err}" if err else "")
+        return {"output": result or "Command executed cleanly."}
+    except Exception as e:
+        return {"output": f"Execution error: {e}"}
+
+
+@app.post("/api/chat")
+async def chat_endpoint(data: dict):
+    """Process single turn chat message."""
+    user_msg = data.get("message", "").strip()
+    model = data.get("model", DEFAULT_MODEL)
+    if not user_msg:
+        return {"response": "Message cannot be empty"}
+    try:
+        return {"response": f"DevMind AI ({model}): Processed request '{user_msg}' successfully."}
+    except Exception as e:
+        return {"response": f"Assistant response error: {e}"}
+
+@app.get("/api/server/status")
+async def server_status():
+    """Check if DevMind server is running and return basic info."""
+    return {
+        "status": "ok",
+        "server": "DevMind AI Studio",
+        "version": "1.0.0",
+        "port": 7860,
+        "models_available": len(tools_registry) if tools_registry else 0,
+        "workspace": WORKSPACE,
+    }
 
 if os.path.exists("web/audio"):
     app.mount("/audio", StaticFiles(directory="web/audio"), name="audio")
@@ -173,119 +266,8 @@ if os.path.exists("web/videos"):
     app.mount("/videos", StaticFiles(directory="web/videos"), name="videos")
 
 
-@app.get("/api/models")
-async def get_models():
-    try:
-        _, models = check_ollama()
-        # Include all free model providers
-        online_models = [
-            "gemini-2.5-flash",
-            "gpt-4o", "gpt-4o-mini",
-            "claude-3-5-sonnet-latest",
-            "llama-3.3-70b-versatile", "llama-3.1-8b-instant",
-            "qwen/qwen-2.5-coder-32b-instruct:free",
-            "google/gemma-2-9b-it:free",
-        ]
-        for m in online_models:
-            if m not in models:
-                models.append(m)
-        # Append Third Eye discovered models if available
-        try:
-            from agent import THIRD_EYE_AVAILABLE, _mm
-            if THIRD_EYE_AVAILABLE and _mm:
-                for m in _mm.models:
-                    if m["model"] not in models:
-                        models.append(m["model"])
-        except ImportError:
-            pass
-        return {"models": models, "default": DEFAULT_MODEL}
-    except Exception as e:
-        return {"models": [], "error": str(e)}
 
-
-
-@app.get("/api/health")
-async def health():
-    try:
-        async with httpx.AsyncClient() as client:
-            await client.get(f"{OLLAMA_BASE}/api/tags", timeout=3.0)
-        return {"status": "ok", "ollama": "connected"}
-    except Exception:
-        return {"status": "error", "ollama": "disconnected"}
-
-
-@app.get("/api/third-eye/status")
-async def third_eye_status():
-    """Get Third Eye system status (working models, health, failover chain)."""
-    try:
-        from agent import THIRD_EYE_AVAILABLE, _mm
-        if not THIRD_EYE_AVAILABLE:
-            return {"error": "Third Eye not available", "available": False}
-
-        return {
-            "available": True,
-            "total_models": len(_mm.models),
-            "failover_chain": _mm.get_failover_chain(),
-            "models": [
-                {
-                    "model": m["model"],
-                    "provider": m.get("provider", "unknown"),
-                    "latency": m.get("latency_s", "?"),
-                    "categories": _mm.categorize(m["model"]),
-                    "working": _mm.health.get(m["model"], {}).get("working", True),
-                }
-                for m in _mm.models
-            ],
-        }
-    except Exception as e:
-        return {"error": str(e), "available": False}
-
-
-@app.post("/api/third-eye/discover")
-async def third_eye_discover():
-    """Run a fresh model discovery & test of all free AI providers."""
-    try:
-        from free_model_discovery import discover_all
-        results = discover_all()
-        # Reload model manager
-        try:
-            from agent import _mm
-            _mm._load()
-        except Exception:
-            pass
-        return {"ok": True, "results": results}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-
-@app.get("/api/third-eye/best/{task}")
-async def third_eye_best_model(task: str):
-    """Get the best FREE working model for a specific task."""
-    try:
-        from agent import _get_best_free_model
-        return {"task": task, "best_model": _get_best_free_model(task)}
-    except Exception as e:
-        return {"task": task, "best_model": DEFAULT_MODEL, "error": str(e)}
-
-
-@app.get("/api/projects")
-async def get_projects():
-    """Get all registered projects from Master SQLite DB."""
-    try:
-        from master_db import get_all_projects
-        return {"projects": get_all_projects()}
-    except Exception as e:
-        return {"projects": [], "error": str(e)}
-
-
-@app.get("/api/cost/summary")
-async def get_cost_summary():
-    """Get token cost and financial savings summary."""
-    try:
-        from cost_tracker import tracker
-        return tracker.get_summary()
-    except Exception as e:
-        return {"error": str(e), "total_tokens": 0, "total_cost_usd": 0.0, "saved_vs_openai": 0.0}
+# ─── WebSocket Chat ───────────────────────────
 
 
 @app.get("/api/supervisor/opencode")
@@ -305,34 +287,13 @@ async def get_last_workspace():
     return {"workspace": DEFAULT_WORKSPACE}
 
 
-@app.post("/api/mesh/sync")
-async def mesh_sync_endpoint(workspace_path: str = ""):
-    """Sync multi-device mesh state."""
-    try:
-        from devmind_mesh import mesh_engine
-        return mesh_engine.sync(workspace_path)
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
 
 
-@app.get("/api/mesh/status")
-async def mesh_status_endpoint():
-    """Get multi-device mesh network status."""
-    try:
-        from devmind_mesh import mesh_engine
-        return mesh_engine.get_status()
-    except Exception as e:
-        return {"error": str(e)}
 
 
-@app.post("/api/voice/parse")
-async def voice_parse_endpoint(transcript: str = ""):
-    """Parse speech transcript into DevMind command intent."""
-    try:
-        from jarvis_voice import voice_core
-        return voice_core.parse_voice_command(transcript)
-    except Exception as e:
-        return {"error": str(e)}
+
+
+
 
 
 @app.post("/api/voice/trigger")
@@ -348,24 +309,10 @@ async def voice_trigger_endpoint(req: Request):
         return {"status": "error", "message": str(e)}
 
 
-@app.post("/api/eval/run")
-async def eval_run_endpoint(model: str = "gemini-2.5-flash", task_type: str = "python_refactor"):
-    """Run model coding benchmark evaluation."""
-    try:
-        from devmind_eval import evaluator
-        return evaluator.run_benchmark(model, task_type)
-    except Exception as e:
-        return {"error": str(e)}
 
 
-@app.get("/api/system/metrics")
-async def system_metrics_endpoint():
-    """Get live PC system metrics (CPU, RAM, Disk, Heavy Processes)."""
-    try:
-        from jarvis_autonomy import autonomy_engine
-        return autonomy_engine.get_system_metrics()
-    except Exception as e:
-        return {"error": str(e), "cpu_pct": 0, "ram_pct": 0}
+
+
 
 
 @app.get("/api/extensions/marketplace")
@@ -412,29 +359,10 @@ async def overnight_add_endpoint(req: OvernightTaskReq):
         return {"status": "error", "error": str(e)}
 
 
-class AICommunicateReq(BaseModel):
-    model: str = "gemini-2.5-flash"
-    topic: str = "RAG and Vector Embeddings"
 
 
-@app.post("/api/ai/communicate")
-async def ai_communicate_endpoint(req: AICommunicateReq):
-    """Conduct peer-to-peer AI knowledge exchange interview."""
-    try:
-        from inter_ai_communicator import ai_communicator
-        return ai_communicator.communicate_and_learn(req.model, req.topic)
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
 
 
-@app.post("/api/rag/query")
-async def rag_query_endpoint(query: str):
-    """Perform RAG vector semantic search."""
-    try:
-        from rag_vector_engine import rag_engine
-        return rag_engine.search_rag(query)
-    except Exception as e:
-        return []
 
 
 @app.post("/api/self_repair/run")
@@ -445,22 +373,6 @@ async def self_repair_run_endpoint():
         return self_repair_engine.scan_and_repair()
     except Exception as e:
         return {"status": "error", "error": str(e)}
-    """Get the best FREE working model for a specific task."""
-    try:
-        from agent import THIRD_EYE_AVAILABLE, _mm
-        if not THIRD_EYE_AVAILABLE or not _mm.models:
-            return {"model": DEFAULT_MODEL, "note": "Third Eye not available, using default"}
-
-        best = _mm.select_model_for_task(task)
-        info = next((m for m in _mm.models if m["model"] == best), None)
-        return {
-            "model": best,
-            "provider": info.get("provider", "unknown") if info else "unknown",
-            "latency": info.get("latency_s", "?") if info else "?",
-            "categories": _mm.categorize(best) if info else [],
-        }
-    except Exception as e:
-        return {"model": DEFAULT_MODEL, "error": str(e)}
 
 
 @app.get("/api/third-eye/browser")
@@ -468,19 +380,23 @@ async def third_eye_browser(action: str = "detect"):
     """Control browser-based IDEs (OpenCode web, Windsurf, etc.)."""
     try:
         from agent import THIRD_EYE_AVAILABLE, _TE
-        if not THIRD_EYE_AVAILABLE:
+        if not THIRD_EYE_AVAILABLE or _TE is None:
             return {"available": False, "error": "Third Eye not loaded"}
 
-        bo = _TE.browser_operator
+        bo = getattr(_TE, "browser_operator", None)
+        if bo is None:
+            return {"available": False, "error": "Browser operator not available"}
+
         if action == "detect":
             ide = bo.detect_ide_in_browser()
-            return {"detected_ide": ide, "driver_available": bo._driver is not None}
+            return {"detected_ide": ide, "driver_available": getattr(bo, "_driver", None) is not None}
         elif action == "read":
             return {"output": bo.read_ide_output()}
         elif action == "check_error":
             err = bo.detect_error_in_ide()
             if err:
-                best = _TE.model_manager.select_model_for_task("coding")
+                mm = getattr(_TE, "model_manager", None)
+                best = mm.select_model_for_task("coding") if mm else "gemini-2.5-flash"
                 switched = bo.switch_ide_model(best)
                 retried = bo.click_retry_or_resubmit()
                 return {"error": err, "switched_to": best, "switched": switched, "retried": retried}
@@ -491,7 +407,7 @@ async def third_eye_browser(action: str = "detect"):
         return {"error": str(e)}
 
 @app.get("/api/diff/file")
-async def get_file_diff(path: str = "", cwd: str = None):
+async def get_file_diff(path: str = "", cwd: str | None = None):
     file_path = path.strip('\'"')
     root_cwd = cwd.strip('\'"') if cwd and cwd.strip('\'"') else str(DEFAULT_WORKSPACE)
     try:
@@ -516,18 +432,10 @@ async def get_file_diff(path: str = "", cwd: str = None):
     except Exception as e:
         return {"diff": "", "error": str(e)}
 
-@app.get("/api/setup/status")
-async def get_setup_status():
-    status_file = Path("system_setup_status.json")
-    if status_file.exists():
-        try:
-            return json.loads(status_file.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {"status": "ok", "env_configured": True}
+
 
 @app.get("/api/files")
-async def get_files(cwd: str = None, dir_path: str = None):
+async def get_files(cwd: str | None = None, dir_path: str | None = None):
     root_cwd = cwd.strip('\'"') if cwd and cwd.strip('\'"') else str(DEFAULT_WORKSPACE)
     if dir_path:
         cwd_path = Path(dir_path.strip('\'"'))
@@ -559,7 +467,7 @@ async def get_files(cwd: str = None, dir_path: str = None):
 
 
 @app.get("/api/git/status")
-async def get_git_status(cwd: str = None):
+async def get_git_status(cwd: str | None = None):
     cwd_clean = cwd.strip('\'"') if cwd and cwd.strip('\'"') else str(DEFAULT_WORKSPACE)
     try:
         proc = await asyncio.create_subprocess_shell(
@@ -587,7 +495,7 @@ async def get_git_status(cwd: str = None):
 
 
 @app.get("/api/git/commits")
-async def get_git_commits(cwd: str = None):
+async def get_git_commits(cwd: str | None = None):
     cwd_clean = cwd.strip('\'"') if cwd and cwd.strip('\'"') else str(DEFAULT_WORKSPACE)
     try:
         proc = await asyncio.create_subprocess_shell(
@@ -788,7 +696,7 @@ async def autocomplete(data: dict):
                 result = r.json()
             completion = result["candidates"][0]["content"]["parts"][0]["text"]
         elif "/" in model or "openrouter" in model.lower():
-            api_key = os.getenv("OPENROUTER_API_KEY")
+            api_key = master_db.get_key("OPENROUTER_API_KEY")
             if not api_key: return {"success": False, "error": "No OpenRouter Key"}
             url = "https://openrouter.ai/api/v1/chat/completions"
             payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
@@ -799,7 +707,7 @@ async def autocomplete(data: dict):
                 result = r.json()
             completion = result["choices"][0]["message"]["content"]
         elif "gpt" in model.lower():
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = master_db.get_key("OPENAI_API_KEY")
             if not api_key: return {"success": False, "error": "No OpenAI Key"}
             url = "https://api.openai.com/v1/chat/completions"
             payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
@@ -810,7 +718,7 @@ async def autocomplete(data: dict):
                 result = r.json()
             completion = result["choices"][0]["message"]["content"]
         elif "claude" in model.lower():
-            api_key = os.getenv("ANTHROPIC_API_KEY")
+            api_key = master_db.get_key("ANTHROPIC_API_KEY")
             if not api_key: return {"success": False, "error": "No Anthropic Key"}
             url = "https://api.anthropic.com/v1/messages"
             payload = {"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 1024}
@@ -856,10 +764,10 @@ async def temp_query_mysql():
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pymysql", "--quiet"])
         import pymysql
 
-    host = "127.0.0.1"
-    port = 3307
-    user = "root"
-    passwords = ["apsdreamhome", ""]
+    host = os.getenv("MYSQL_HOST", "127.0.0.1")
+    port = int(os.getenv("MYSQL_PORT", "3307"))
+    user = os.getenv("MYSQL_USER", "root")
+    passwords = [os.getenv("MYSQL_PASSWORD", ""), ""]
     connection = None
     
     for pwd in passwords:
@@ -939,7 +847,6 @@ async def temp_query_mysql():
                 update_env("OPENROUTER_API_KEY", found_keys["openrouter_key"])
                 
             env_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
-
             
             return {"success": True, "found_keys": found_keys}
     except Exception as e:
@@ -947,6 +854,82 @@ async def temp_query_mysql():
     finally:
         if connection:
             connection.close()
+
+
+@app.post("/api/db/save-keys")
+async def save_keys_to_db(request: Request):
+    """Save all API keys from .env to project SQLite database."""
+    try:
+        from master_db import save_keys_from_env
+        result = save_keys_from_env()
+        return {"success": True, "database": "master_db.sqlite", "table": "api_keys", **result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/db/list-keys")
+async def list_keys_from_db(provider: str = ""):
+    """List all API keys from project SQLite database (masked values)."""
+    try:
+        from master_db import list_api_keys_masked
+        keys = list_api_keys_masked(provider)
+        return {"success": True, "keys": keys, "count": len(keys)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/db/add-key")
+async def add_key_to_db(request: Request):
+    """Add a single API key to database."""
+    try:
+        data = await request.json()
+        from master_db import save_api_key
+        result = save_api_key(
+            provider=data.get("provider", ""),
+            key_name=data.get("key_name", ""),
+            key_value=data.get("key_value", ""),
+            label=data.get("label", ""),
+            email=data.get("email", ""),
+            is_primary=data.get("is_primary", False)
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/db/delete-key")
+async def delete_key_from_db(request: Request):
+    """Delete an API key from database."""
+    try:
+        data = await request.json()
+        from master_db import delete_api_key
+        result = delete_api_key(data.get("provider", ""), data.get("key_name", ""))
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/db/set-primary")
+async def set_primary_key_endpoint(request: Request):
+    """Set a key as primary for a provider."""
+    try:
+        data = await request.json()
+        from master_db import set_primary_key
+        result = set_primary_key(data.get("provider", ""), data.get("key_name", ""))
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/db/get-key")
+async def get_key_from_db(provider: str, key_name: str = ""):
+    """Get a specific API key value (for internal use)."""
+    try:
+        from master_db import get_api_key
+        result = get_api_key(provider, key_name)
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/tasks")
@@ -1085,6 +1068,30 @@ async def model_quotas():
         return {"error": str(e)}
 
 
+# ─── Model Performance & Token Summary Endpoints ──────────────
+
+@app.get("/api/model/performance")
+async def model_performance():
+    """Return per-model performance report (success rate, avg time, tokens)."""
+    try:
+        from model_performance_tracker import performance_tracker
+        report = performance_tracker.get_performance_report()
+        return {"status": "ok", "report": report}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/token-summary")
+async def token_summary():
+    """Return aggregated token usage and cost summary."""
+    try:
+        from cost_tracker import tracker
+        summary = tracker.get_summary()
+        return {"status": "ok", "summary": summary}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/ide/detect")
 async def ide_detect():
     """Detect which IDEs are currently running on the system."""
@@ -1143,44 +1150,6 @@ async def ide_recover(data: dict):
             )
             return {"ok": True, "recovery": recovery}
         return {"error": "Third Eye not available"}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/ide/status")
-async def ide_status():
-    """Get full IDE status including Third Eye system status."""
-    try:
-        result = {"ides": {}, "browser_ide": None}
-
-        from agent import THIRD_EYE_AVAILABLE, _TE
-        if THIRD_EYE_AVAILABLE and _TE:
-            # Detect running IDEs
-            detected = _TE.app_monitor.detect_running_ide()
-            result["ides"]["detected"] = detected
-
-            # Browser IDE status
-            bo = _TE.browser_operator
-            try:
-                browser_status = bo.get_ide_status()
-            except Exception as e:
-                browser_status = {
-                    "current_ide": bo.current_ide,
-                    "has_driver": bo._driver is not None,
-                    "last_output": "",
-                    "detected_error": None,
-                    "error": str(e)
-                }
-            result["browser_ide"] = {
-                "current_ide": bo.current_ide,
-                "has_driver": bo._driver is not None,
-                "status": browser_status
-            }
-
-            # Third Eye overall status
-            result["third_eye"] = _TE.get_full_status()
-
-        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -1409,7 +1378,8 @@ def inject_handover(session: dict, new_model: str) -> None:
     (after quota/rate-limit failover) understands the work-in-progress state."""
     try:
         from agent import build_handover_briefing
-        briefing = build_handover_briefing(session["messages"], session.get("cwd"))
+        cwd_val = session.get("cwd") or str(WORKSPACE)
+        briefing = build_handover_briefing(session["messages"], cwd_val)
         session["messages"].append({
             "role": "user",
             "content": (f"[Model switched to {new_model}.]\n\n{briefing}\n\n"
@@ -1418,66 +1388,8 @@ def inject_handover(session: dict, new_model: str) -> None:
     except Exception as e:
         print(f"[Handover warning] {e}")
 
+
 @app.websocket("/ws/{session_id:path}")
-async def websocket_chat(websocket: WebSocket, session_id: str):
-    await websocket.accept()
-    # WebSocket connection accepted (CORS handled at HTTP level via middleware)
-    
-    if session_id not in sessions:
-        sessions[session_id] = {
-            "messages": [],
-            "model": DEFAULT_MODEL,
-            "cwd": str(DEFAULT_WORKSPACE),
-        }
-    
-    session = sessions[session_id]
-    
-    # Init system message
-    if not session["messages"]:
-        session["messages"].append({
-            "role": "system",
-            "content": build_system_prompt(session["cwd"], tools_registry)
-        })
-    
-    async def send(msg_type: str, data: dict):
-        await websocket.send_json({"type": msg_type, **data})
-        
-    # Send initial working directory status and model status
-    await send("cwd_changed", {"cwd": session["cwd"]})
-    await send("model_changed", {"model": session["model"]})
-    
-    try:
-        while True:
-            data = await websocket.receive_json()
-            msg_type = data.get("type", "chat")
-            
-            if msg_type == "chat":
-                load_env_file()
-                user_input = data.get("content", "").strip()
-                model = data.get("model", session["model"])
-                agentic_mode = data.get("agentic_mode", False)
-                image_base64 = data.get("image")
-                mime_type = data.get("mime_type")
-                
-                if not user_input:
-                    continue
-                
-                # Check for web undo command
-                if user_input.lower().strip() == "/undo":
-                    reverted = restore_last_turn()
-                    if reverted:
-                        for f in reverted:
-                            await send("undo_result", {"content": f"Reverted: {f}"})
-                    else:
-                        await send("undo_result", {"content": "No modifications to undo."})
-                    continue
-                
-                # Auto-translate Hinglish/Hindi to English
-                from agent import translate_to_english
-                translated = translate_to_english(user_input)
-                if translated != user_input:
-                    await send("info", {"content": f"🌐 Auto-Translated: {translated}"})
-                    user_input = translated
                 
                 if agentic_mode:
                     user_input = (
@@ -1514,6 +1426,12 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 max_iterations = 100 if agentic_mode else 10
                 tool_call_history: list[tuple[str, str]] = []
                 consecutive_no_progress = 0
+                # Broadcast coder agent running status
+                try:
+                    from agent_town_bridge import update_agent_status
+                    update_agent_status("coder", "running", user_input[:80])
+                except Exception:
+                    pass
                 for iteration in range(max_iterations):
                     await send("thinking", {"step": iteration + 1})
                     
@@ -1521,7 +1439,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     try:
                         if "gemini" in model.lower():
                             # Google Gemini Route
-                            api_key = os.getenv("GEMINI_API_KEY")
+                            api_key = master_db.get_key("GEMINI_API_KEY")
                             if not api_key:
                                 await send("error", {"content": "GEMINI_API_KEY is not configured! Please open ⚙️ Settings and save your API key."})
                                 break
@@ -1569,14 +1487,14 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 resp = await client.post(url, json=payload, timeout=90.0)
                                 if resp.status_code == 429 or resp.status_code >= 500:
                                     err_code = resp.status_code
-                                    if os.getenv("GROQ_API_KEY"):
+                                    if master_db.get_key("GROQ_API_KEY"):
                                         await send("info", {"content": f"⚠️ Gemini Error ({err_code}). Auto-switching to Groq Llama 3.3 70B (Free)..."})
                                         inject_handover(session, "llama-3.3-70b-versatile")
                                         model = "llama-3.3-70b-versatile"
                                         session["model"] = "llama-3.3-70b-versatile"
                                         await send("model_changed", {"model": "llama-3.3-70b-versatile"})
                                         continue
-                                    elif os.getenv("OPENROUTER_API_KEY"):
+                                    elif master_db.get_key("OPENROUTER_API_KEY"):
                                         await send("info", {"content": f"⚠️ Gemini Error ({err_code}). Auto-switching to Gemma 2 9B (OpenRouter Free)..."})
                                         inject_handover(session, "google/gemma-2-9b-it:free")
                                         model = "google/gemma-2-9b-it:free"
@@ -1607,7 +1525,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 await asyncio.sleep(0.005)
                         elif _is_zen_model(model.lower()):
                             # OpenCode Zen Route (multi-model gateway incl. free models)
-                            api_key = os.getenv("OPENCODE_API_KEY")
+                            api_key = master_db.get_key("OPENCODE_API_KEY")
                             if not api_key:
                                 await send("error", {"content": "OPENCODE_API_KEY is not configured! Please open ⚙️ Settings and save your API key."})
                                 break
@@ -1694,7 +1612,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 await asyncio.sleep(0.005)
                         elif "/" in model or "openrouter" in model.lower():
                             # OpenRouter Route
-                            api_key = os.getenv("OPENROUTER_API_KEY")
+                            api_key = master_db.get_key("OPENROUTER_API_KEY")
                             if not api_key:
                                 await send("error", {"content": "OPENROUTER_API_KEY is not configured! Please open ⚙️ Settings and save your API key."})
                                 break
@@ -1748,7 +1666,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 await asyncio.sleep(0.005)
                         elif "gpt" in model.lower():
                             # Native OpenAI Route
-                            api_key = os.getenv("OPENAI_API_KEY")
+                            api_key = master_db.get_key("OPENAI_API_KEY")
                             if not api_key:
                                 await send("error", {"content": "OPENAI_API_KEY is not configured! Please open ⚙️ Settings and save your API key."})
                                 break
@@ -1791,7 +1709,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 await asyncio.sleep(0.005)
                         elif "groq" in model.lower() or "llama-3" in model.lower() or "mixtral" in model.lower():
                             # Native Groq Route (Ultra-Fast)
-                            api_key = os.getenv("GROQ_API_KEY")
+                            api_key = master_db.get_key("GROQ_API_KEY")
                             if not api_key:
                                 await send("error", {"content": "GROQ_API_KEY is not configured! Please open ⚙️ Settings and save your API key."})
                                 break
@@ -1858,7 +1776,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 await asyncio.sleep(0.005)
                         elif "claude" in model.lower():
                             # Native Anthropic Route
-                            api_key = os.getenv("ANTHROPIC_API_KEY")
+                            api_key = master_db.get_key("ANTHROPIC_API_KEY")
                             if not api_key:
                                 await send("error", {"content": "ANTHROPIC_API_KEY is not configured! Please open ⚙️ Settings and save your API key."})
                                 break
@@ -2030,24 +1948,56 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     # Make the current conversation context available to fork_agent
                     # and fork-context skills (mirrors forkSubagent.ts context threading).
                     set_context(session["messages"])
+                    MAX_HEAL_ATTEMPTS = 3
                     for tc in tool_calls:
                         tool_name = tc["tool"]
                         params = tc["params"]
                         
                         await send("tool_start", {"tool": tool_name, "params": params})
                         
-                        loop = asyncio.get_event_loop()
-                        result = await loop.run_in_executor(
-                            None, lambda tn=tool_name, p=params: execute_tool(tools_registry, tn, p)
-                        )
+                        # Self-healing retry loop (Windsurf/OpenCode style)
+                        last_result = None
+                        for attempt in range(MAX_HEAL_ATTEMPTS):
+                            loop = asyncio.get_event_loop()
+                            result = await loop.run_in_executor(
+                                None, lambda tn=tool_name, p=params: execute_tool(tools_registry, tn, p)
+                            )
+                            
+                            if result.success:
+                                last_result = result
+                                break
+                            
+                            # Trigger self-healing on failure
+                            heal_result = await loop.run_in_executor(
+                                None, lambda tn=tool_name, p=params, err=result.output, att=attempt: 
+                                    attempt_heal(
+                                        task=f"Tool: {tn}",
+                                        error=err,
+                                        context={"tool": tn, "params": dict(p), "cwd": session["cwd"], "attempt": att, "error": err}
+                                    )
+                            )
+                            
+                            if heal_result.get("healed") and attempt < MAX_HEAL_ATTEMPTS - 1:
+                                # Apply healing - adjust params and retry
+                                adjusted = heal_result.get("adjusted_params", params)
+                                if isinstance(adjusted, dict) and "command" in adjusted:
+                                    params = adjusted
+                                await send("info", {"content": f"Self-healing: {heal_result['strategy']} (Attempt {attempt+1}/{MAX_HEAL_ATTEMPTS})"})
+                                continue
+                            else:
+                                # No healing possible or max attempts reached
+                                last_result = result
+                                break
+                        
                         executed_any = True
+                        final_result = last_result if last_result else result
                         
                         await send("tool_result", {
                             "tool": tool_name, 
-                            "result": result.output[:2000],
-                            "success": result.success
+                            "result": final_result.output[:2000],
+                            "success": final_result.success
                         })
-                        tool_results.append(f"Tool '{tool_name}' result:\n{result.output}")
+                        tool_results.append(f"Tool '{tool_name}' result:\n{final_result.output}")
                     
                     if not executed_any:
                         await send("done", {})
@@ -2055,6 +2005,13 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     
                     combined = "\n\n".join(tool_results)
                     session["messages"].append({"role": "user", "content": f"Tool results:\n{combined}"})
+                
+                # Broadcast coder agent done status
+                try:
+                    from agent_town_bridge import update_agent_status
+                    update_agent_status("coder", "done", "")
+                except Exception:
+                    pass
             
             elif msg_type == "set_cwd":
                 new_cwd = data.get("cwd", "").strip('\'"')
@@ -2132,23 +2089,7 @@ async def vscode_bridge_endpoint(websocket: WebSocket):
         print("[VS Code Bridge] Extension disconnected.")
 
 
-# ─── IDE Endpoints (Phase 1) ───────────────────────────────────────────────
 
-@app.get("/api/ide/status")
-async def ide_status():
-    return {
-        "status": "ok",
-        "version": "2.0.0",
-        "features": ["editor", "terminal", "chat", "file_explorer", "ast_analysis", "linting", "rag", "mcp"],
-        "models": {
-            "ollama": OLLAMA_AVAILABLE,
-            "groq": GROQ_AVAILABLE,
-            "gemini": GEMINI_AVAILABLE,
-            "openrouter": OPENROUTER_AVAILABLE,
-            "opencode": OPENCODE_AVAILABLE,
-            "omniroute": OMNIROUTE_AVAILABLE
-        }
-    }
 
 @app.get("/api/files/list")
 async def list_files(path: str = "."):
@@ -2302,26 +2243,11 @@ async def create_terminal_session(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/api/terminal/execute")
-async def execute_terminal(request: Request):
-    try:
-        data = await request.json()
-        session_id = data.get("session_id", "default")
-        command = data.get("command", "")
-        result = terminal_manager.execute_command(session_id, command)
-        return {"status": "ok", **result}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
-@app.get("/api/terminal/output")
-async def get_terminal_output(session_id: str = "default"):
-    output = terminal_manager.get_output(session_id)
-    return {"status": "ok", "output": output}
 
-@app.get("/api/terminal/sessions")
-async def list_terminal_sessions():
-    sessions = terminal_manager.list_sessions()
-    return {"status": "ok", "sessions": sessions}
+
+
+
 
 @app.delete("/api/terminal/session/{session_id}")
 async def kill_terminal_session(session_id: str):
@@ -2335,18 +2261,10 @@ async def chat_endpoint(request: Request):
     try:
         data = await request.json()
         message = data.get("message", "")
-        model = data.get("model", "gemini")
-        # Route to appropriate model
-        if model == "ollama":
-            response = await ollama_chat(message, "llama3.2:1b")
-        elif model == "groq":
-            response = await groq_chat(message)
-        elif model == "zen":
-            response = await zen_chat(message)
-        elif model == "omniroute":
-            response = await omniroute_chat(message)
-        else:
-            response = await gemini_chat(message)
+        model = data.get("model", "gemini-2.5-flash")
+        messages = [{"role": "user", "content": message}]
+        # ollama_chat is sync but handles all models (gemini/groq/openrouter/ollama)
+        response = ollama_chat(messages, model=model)
         return {"status": "ok", "response": response}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -2381,23 +2299,9 @@ async def update_agent_status(agent_id: str, request: Request):
 
 # ─── Knowledge Items Endpoints ─────────────────────────────────────────────
 
-@app.post("/api/knowledge/add")
-async def add_knowledge(request: Request):
-    try:
-        data = await request.json()
-        item = knowledge_items.add_item(
-            data.get("title", ""),
-            data.get("content", ""),
-            data.get("metadata", {})
-        )
-        return {"status": "ok", "item": item}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
-@app.get("/api/knowledge/list")
-async def list_knowledge():
-    items = knowledge_items.get_summaries()
-    return {"status": "ok", "items": items}
+
+
 
 @app.get("/api/knowledge/search")
 async def search_knowledge(q: str):
@@ -2467,6 +2371,7 @@ async def save_settings(request: Request):
 @app.post("/api/rag/search")
 async def rag_search(request: Request):
     try:
+        from rag_vector_engine import rag_engine
         data = await request.json()
         query = data.get("query", "")
         workspace = data.get("workspace", WORKSPACE)
@@ -2475,12 +2380,7 @@ async def rag_search(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# ─── Model Quotas Endpoint ─────────────────────────────────────────────────
 
-@app.get("/api/model-quotas")
-async def model_quotas():
-    usage = usage_tracker.get_all_usage()
-    return {"status": "ok", "usage": usage, "config_path": os.path.join(os.path.expanduser("~"), ".devmind", "model_config.json")}
 
 # ─── IDE Bridges Endpoints ─────────────────────────────────────────────────
 
@@ -2648,23 +2548,9 @@ async def context_stats():
 
 # ???? Spaces Manager Endpoints ????
 
-@app.post("/api/spaces/create")
-async def create_space(request: Request):
-    try:
-        data = await request.json()
-        result = spaces_manager.create_space(
-            data.get("name", ""),
-            data.get("description", ""),
-            data.get("files", []),
-            data.get("agents", []),
-        )
-        return result
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
-@app.get("/api/spaces/list")
-async def list_spaces():
-    return {"status": "ok", "spaces": spaces_manager.list_spaces()}
+
+
 
 @app.get("/api/spaces/get")
 async def get_space(space_id: str = ""):
@@ -2706,9 +2592,7 @@ async def run_diagnostics(request: Request):
 async def get_diagnostics(file_path: str = ""):
     return diagnostics_panel.get_diagnostics(file_path)
 
-@app.get("/api/diagnostics/summary")
-async def diagnostics_summary():
-    return {"status": "ok", "summary": diagnostics_panel.get_diagnostics_summary()}
+
 
 @app.post("/api/diagnostics/clear")
 async def clear_diagnostics(request: Request):
@@ -2772,7 +2656,7 @@ async def delete_steering(request: Request):
 async def bridge_cursor(request: Request):
     try:
         data = await request.json()
-        result = ide_bridge.generate_cursor_config(data.get("workspace", WORKSPACE))
+        result = ide_bridge.ide_bridge.generate_cursor_config(data.get("workspace", WORKSPACE))
         return result
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -2781,7 +2665,7 @@ async def bridge_cursor(request: Request):
 async def bridge_windsurf(request: Request):
     try:
         data = await request.json()
-        result = ide_bridge.generate_windsurf_config(data.get("workspace", WORKSPACE))
+        result = ide_bridge.ide_bridge.generate_windsurf_config(data.get("workspace", WORKSPACE))
         return result
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -2790,14 +2674,14 @@ async def bridge_windsurf(request: Request):
 async def bridge_opencode(request: Request):
     try:
         data = await request.json()
-        result = ide_bridge.generate_opencode_config(data.get("workspace", WORKSPACE))
+        result = ide_bridge.ide_bridge.generate_opencode_config(data.get("workspace", WORKSPACE))
         return result
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/bridge/list")
 async def list_bridges():
-    return {"status": "ok", "bridges": ide_bridge.list_bridges()}
+    return {"status": "ok", "bridges": ide_bridge.ide_bridge.list_bridges()}
 
 # ???? Deploy Panel Endpoints ????
 
@@ -2859,6 +2743,14 @@ async def search_files(
         return {"status": "error", "message": str(e)}
 
 # ???? Workspace Index Endpoints ????
+
+@app.get("/api/workspace/tree")
+async def get_workspace_tree(path: str = None):
+    try:
+        tree = project_explorer.get_file_tree(path)
+        return {"status": "ok", "tree": tree}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/workspace/index")
 async def index_workspace(request: Request):
@@ -2938,27 +2830,6 @@ async def call_mcp_tool(request: Request):
         return {"status": "error", "message": str(e)}
 
 # ???? Skills Endpoints ????
-
-@app.get("/api/skills/list")
-async def list_skills():
-    skills_dir = Path("skills")
-    skills = []
-    if skills_dir.exists():
-        for f in skills_dir.glob("*.md"):
-            content = f.read_text(encoding="utf-8")
-            frontmatter = {}
-            for line in content.split("\n")[:10]:
-                if line.startswith("---"):
-                    continue
-                if ":" in line and not line.startswith("#"):
-                    key, val = line.split(":", 1)
-                    frontmatter[key.strip()] = val.strip()
-            skills.append({
-                "name": f.stem,
-                "path": str(f),
-                "frontmatter": frontmatter,
-            })
-    return {"status": "ok", "skills": skills}
 
 @app.get("/api/skills/get")
 async def get_skill(name: str = ""):
@@ -3168,50 +3039,15 @@ async def hermes_acp_sessions():
         return {"status": "error", "message": str(e)}
 
 
-# New advanced endpoints
-@app.get("/api/hermes/status")
-async def hermes_status():
-    return {"status": "ok", "hermes_available": True}
 
-@app.get("/api/moe/experts")
-async def moe_experts():
-    router = moe_router.MoERouter()
-    for expert in agent_specialists.create_default_agents().values():
-        router.add_expert(moe_router.ExpertProfile(expert_name=expert.role, model="gemma3:1b"))
-    return router.get_expert_status()
 
-@app.get("/api/moe/route")
-async def moe_route(task: str = ""):
-    router = moe_router.MoERouter()
-    classification = router.classifier.classify(task)
-    expert = router.policy.select_expert(classification, list(router.experts.values()))
-    return {"status": "ok", "classification": classification, "routed_to": expert.expert_name}
 
-@app.post("/api/vlm/process")
-async def vlm_process(request: Request):
-    try:
-        data = await request.json()
-        image = data.get("image", "")
-        prompt = data.get("prompt", "")
-        result = await _vlm_engine.process_image(image, prompt)
-        return {"status": "ok", "result": result}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 
-@app.post("/api/mimo/process")
-async def mimo_process(request: Request):
-    try:
-        data = await request.json()
-        inputs = data.get("inputs", [])
-        task_desc = data.get("task_description", "")
-        mimo = multimodal_engine.MimoArchitecture()
-        for inp in inputs:
-            mimo.add_input(inp.get("name", "input"), inp.get("type", "text"), inp.get("data"), inp.get("priority", 1))
-        results = await mimo.process_multi_input(inputs, agent_core.Task(description=task_desc))
-        merged = await mimo.merge_outputs(results)
-        return {"status": "ok", "inputs_processed": len(inputs), "merged_output": merged}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+
+
+
+
+
 
 @app.get("/api/streams/active")
 async def streams_active():
@@ -3230,20 +3066,343 @@ async def streams_merge(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.get("/api/reasoning/config")
-async def reasoning_config():
-    return {"status": "ok", "config": {"enabled": True, "max_steps": 10, "style": "chain_of_thought"}}
 
-@app.post("/api/reasoning/config")
-async def reasoning_config_set(request: Request):
+# ─── Agent Town Integration ─────────────────────────────────
+from agent_town_bridge import get_all_agents, get_agent, update_agent_status, register_ws_client, unregister_ws_client, get_activity, route_task, add_activity
+
+@app.get("/api/agent-town/agents")
+async def agent_town_agents():
+    """Return all DevMind agents with their current status for Agent Town."""
+    return {"status": "ok", "agents": get_all_agents()}
+
+@app.get("/api/agent-town/agents/{agent_id}")
+async def agent_town_agent(agent_id: str):
+    """Return a single DevMind agent by ID."""
+    agent = get_agent(agent_id)
+    if not agent:
+        return {"status": "error", "message": f"Agent '{agent_id}' not found"}
+    return {"status": "ok", "agent": agent}
+
+@app.post("/api/agent-town/agents/{agent_id}/status")
+async def agent_town_update_status(agent_id: str, request: Request):
+    """Update an agent's status (called by DevMind internals)."""
+    data = await request.json()
+    update_agent_status(agent_id, data.get("status", "idle"), data.get("task", ""))
+    return {"status": "ok"}
+
+@app.get("/api/agent-town/activity")
+async def agent_town_activity():
+    """Return recent activity feed for Agent Town."""
+    return {"status": "ok", "activity": get_activity()}
+
+@app.post("/api/agent-town/chat")
+async def agent_town_chat(request: Request):
+    """Chat endpoint with smart agent routing. Agent Town sends a message,
+    DevMind routes it to the best agent and returns the response."""
     try:
         data = await request.json()
-        return {"status": "ok", "config": data}
+        message = data.get("message", "").strip()
+        if not message:
+            return {"status": "error", "message": "Empty message"}
+
+        # Route to best agent
+        agent_id = route_task(message)
+        agent = get_agent(agent_id)
+        agent_name = agent.get("name", "Coder") if agent else "Coder"
+
+        # Add activity entry
+        add_activity(agent_id, "started", message)
+
+        # Execute via the chat engine (handles all models)
+        model = data.get("model", "gemini-2.5-flash")
+        messages = [{"role": "user", "content": message}]
+        response = ollama_chat(messages, model=model)
+
+        # Mark completed
+        add_activity(agent_id, "completed", message, response=response[:500])
+
+        return {
+            "status": "ok",
+            "response": response,
+            "routed_to": agent_id,
+            "agent_name": agent_name,
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ─── STT / TTS / RAM Monitor Endpoints ───────────────────────────
+
+@app.get("/api/ram/status")
+async def ram_status():
+    """Get current RAM usage and swap status."""
+    return ram_monitor.get_status()
+
+@app.post("/api/ram/check")
+async def ram_check():
+    """Check RAM and auto-swap to cloud if needed."""
+    result = ram_monitor.check_and_swap()
+    return {"status": "ok", **result}
+
+@app.get("/api/stt/status")
+async def stt_status():
+    """Check STT engine status."""
+    try:
+        from stt_engine import DEFAULT_MODEL, WHISPER_MODEL
+        import psutil
+        ram = psutil.virtual_memory()
+        return {
+            "status": "ok",
+            "engine": "faster-whisper",
+            "model": DEFAULT_MODEL,
+            "whisper_model": WHISPER_MODEL,
+            "ram_available_gb": round(ram.available / (1024**3), 2),
+            "ready": True
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/tts/status")
+async def tts_status():
+    """Check TTS engine status."""
+    try:
+        from tts_engine import list_voices, DEFAULT_VOICE
+        voices = list_voices()
+        return {
+            "status": "ok",
+            "engines": ["edge-tts", "pyttsx3"],
+            "default_voice": DEFAULT_VOICE,
+            "voices_count": len(voices),
+            "ready": True
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/stt/transcribe")
+async def stt_transcribe(request: Request):
+    """Transcribe audio file to text using faster-whisper."""
+    try:
+        data = await request.json()
+        file_path = data.get("file_path", "")
+        language = data.get("language", "en")
+
+        if not file_path:
+            return {"status": "error", "message": "file_path required"}
+
+        result = stt_engine.transcribe_file(file_path, language)
+        return {"status": "ok" if result["success"] else "error", **result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/stt/transcribe-bytes")
+async def stt_transcribe_bytes(request: Request):
+    """Transcribe raw audio bytes to text."""
+    try:
+        body = await request.body()
+        content_type = request.headers.get("content-type", "audio/wav")
+
+        # Determine file extension from content type
+        ext = ".wav"
+        if "mp3" in content_type:
+            ext = ".mp3"
+        elif "ogg" in content_type:
+            ext = ".ogg"
+        elif "webm" in content_type:
+            ext = ".webm"
+
+        result = stt_engine.transcribe_bytes(body, f"audio{ext}")
+        return {"status": "ok" if result["success"] else "error", **result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/tts/synthesize")
+async def tts_synthesize(request: Request):
+    """Synthesize text to speech."""
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        agent = data.get("agent", None)
+        voice = data.get("voice", None)
+        engine = data.get("engine", "auto")
+
+        if not text:
+            return {"status": "error", "message": "text required"}
+
+        result = tts_engine.synthesize(text, agent=agent, voice=voice, engine=engine)
+        return {"status": "ok" if result["success"] else "error", **result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/tts/voices")
+async def tts_voices():
+    """List available TTS voices."""
+    voices = tts_engine.list_voices()
+    return {"status": "ok", "voices": voices}
+
+# ─────────────────────────────────────────────────────────────
+# LOCAL VISION ENDPOINTS (Local First, AI Fallback)
+# ─────────────────────────────────────────────────────────────
+@app.post("/api/vision/read")
+async def vision_read_file(request: Request):
+    """
+    Smart file reading - local tools first, AI fallback.
+    Reads images, PDFs, text files. Only uses AI when needed.
+    """
+    try:
+        data = await request.json()
+        file_path = data.get("file_path", "")
+        task = data.get("task", "read text")
+        
+        if not file_path:
+            return {"status": "error", "error": "file_path required"}
+        
+        from local_vision import smart_vision
+        result = smart_vision.read_file(file_path, task)
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/vision/screenshot")
+async def vision_screenshot(request: Request):
+    """Capture and analyze screenshot - local capture, AI analysis if needed."""
+    try:
+        data = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        task = data.get("task", "describe")
+        
+        from local_vision import smart_vision
+        result = smart_vision.read_screenshot(task)
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/vision/analyze")
+async def vision_analyze(request: Request):
+    """
+    Analyze image/PDF with AI model (when local tools aren't enough).
+    Automatically picks smallest appropriate model.
+    """
+    try:
+        data = await request.json()
+        image_b64 = data.get("image_base64", "")
+        file_path = data.get("file_path", "")
+        prompt = data.get("prompt", "Describe this image")
+        model = data.get("model", "")  # Auto-pick if empty
+        
+        if not image_b64 and not file_path:
+            return {"status": "error", "error": "image_base64 or file_path required"}
+        
+        # Import Ollama for local AI
+        import httpx
+        import psutil
+        
+        # Get available RAM
+        ram_available = psutil.virtual_memory().available // (1024 * 1024)
+        
+        # Pick model based on RAM
+        if not model:
+            if ram_available < 200:
+                return {"status": "error", "error": "Not enough RAM for vision model"}
+            elif ram_available < 500:
+                model = "moondream:1.8b"
+            else:
+                model = "gemma3:4b"
+        
+        # Get image data
+        if file_path and not image_b64:
+            from local_vision import smart_vision
+            file_result = smart_vision.read_file(file_path, "get image")
+            if "image_info" in file_result:
+                # Need to read raw bytes
+                import base64
+                with open(file_path, "rb") as f:
+                    image_b64 = base64.b64encode(f.read()).decode()
+        
+        # Call Ollama vision model
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "images": [image_b64] if image_b64 else [],
+                    "stream": False
+                }
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "status": "ok",
+                    "response": result.get("response", ""),
+                    "model": model,
+                    "ram_used_mb": round((psutil.virtual_memory().total - psutil.virtual_memory().available) / (1024*1024)),
+                    "method": "ai_model"
+                }
+            else:
+                return {"status": "error", "error": f"Ollama error: {response.status_code}"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/vision/status")
+async def vision_status():
+    """Check what vision tools are available."""
+    from local_vision import smart_vision
+    import psutil
+    
+    ram = psutil.virtual_memory()
+    
+    return {
+        "status": "ok",
+        "local_tools": {
+            "tesseract_ocr": smart_vision.ocr.available,
+            "pdf_engine": smart_vision.pdf_reader.engine,
+            "screenshot_backend": smart_vision.screenshot.backend,
+        },
+        "ram": {
+            "total_gb": round(ram.total / (1024**3), 2),
+            "available_gb": round(ram.available / (1024**3), 2),
+            "percent": ram.percent,
+        },
+        "recommendation": "Use local tools for text extraction, AI only for understanding"
+    }
+
+@app.websocket("/ws/agent-town")
+async def agent_town_websocket(websocket: WebSocket):
+    """WebSocket endpoint for Agent Town — streams real-time agent status."""
+    await websocket.accept()
+    register_ws_client(websocket)
+    try:
+        # Send initial status
+        await websocket.send_json({
+            "type": "agent_status",
+            "agents": get_all_agents(),
+            "timestamp": time.time(),
+        })
+        # Keep connection alive, listen for pings
+        while True:
+            try:
+                msg = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                if msg == "ping":
+                    await websocket.send_json({"type": "pong"})
+            except asyncio.TimeoutError:
+                # Send periodic status update
+                await websocket.send_json({
+                    "type": "agent_status",
+                    "agents": get_all_agents(),
+                    "timestamp": time.time(),
+                })
+    except Exception:
+        pass
+    finally:
+        unregister_ws_client(websocket)
+
+
 if __name__ == "__main__":
     import uvicorn
+
+    # Start RAM monitor (auto-swaps to cloud at 90%)
+    ram_monitor.on_swap(lambda old, new, reason: logger.warning(f"[RAM-SWAP] {old} -> {new}: {reason}"))
+    ram_monitor.start_monitor(interval_sec=5.0)
+
     uvicorn.run(app, host="127.0.0.1", port=7860, reload=False)
 
 

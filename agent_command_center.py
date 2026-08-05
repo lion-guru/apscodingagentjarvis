@@ -79,6 +79,25 @@ class AgentCommandCenter:
         self.active_sessions[session_id] = agent
         return {"status": "ok", "agent_id": session_id, "agent": agent}
 
+    def spawn_agent(self, name: str, instruction: str = "", model: str = "auto") -> dict:
+        return self.spawn_sub_agent(name, instruction, model)
+
+    def update_agent(self, agent_id: str, status: str, task: str = None) -> dict:
+        agent_file = AGENTS_DIR / f"{agent_id}.json"
+        if not agent_file.exists():
+            return {"status": "error", "error": f"Agent '{agent_id}' not found"}
+        try:
+            agent = json.loads(agent_file.read_text(encoding="utf-8"))
+            agent["status"] = status
+            if task is not None:
+                agent["instruction"] = task
+            agent["updated_at"] = datetime.now().isoformat()
+            agent_file.write_text(json.dumps(agent, indent=2, default=str), encoding="utf-8")
+            self.active_sessions[agent_id] = agent
+            return {"status": "ok", "agent_id": agent_id, "agent": agent}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
     def list_agents(self) -> list[dict]:
         agents = []
         if AGENTS_DIR.exists():
@@ -257,3 +276,13 @@ class AgentCommandCenter:
 
 
 agent_command_center = AgentCommandCenter()
+
+
+def list_agents() -> list[dict]:
+    return agent_command_center.list_agents()
+
+def spawn_agent(name: str, instruction: str = "", model: str = "auto") -> dict:
+    return agent_command_center.spawn_agent(name, instruction, model)
+
+def update_agent(agent_id: str, status: str, task: str = None) -> dict:
+    return agent_command_center.update_agent(agent_id, status, task)

@@ -41,7 +41,7 @@ class JarvisAutonomyEngine:
         except Exception as e:
             return {"error": str(e), "status": "unknown"}
 
-    def ensure_services_running((self) -> dict:
+    def ensure_services_running(self) -> dict:
         """Auto-detect missing services (Ollama, OpenCode) and launch them silently."""
         results = {"ollama_launched": False, "opencode_running": False}
         

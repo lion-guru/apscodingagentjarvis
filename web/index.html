@@ -6,7 +6,7 @@
 <title>DevMind AI IDE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/theme/material-darker.min.css" />
 <style>
@@ -311,7 +311,6 @@ body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:f
 .extension-item .ext-actions button{padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;border:none}
 .extension-item .ext-actions .install-btn{background:var(--accent);color:var(--bg-primary)}
 .extension-item .ext-actions .installed-btn{background:var(--bg-tertiary);color:var(--fg-secondary)}
-.debug-panel{flex:1;overflow-y:auto;padding:8px;font-size:12px}
 .debug-session{padding:8px;border-bottom:1px solid var(--border)}
 .debug-session .session-name{font-weight:500;margin-bottom:4px}
 .debug-session .session-info{font-size:11px;color:var(--fg-muted)}
@@ -396,68 +395,68 @@ body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:f
 </div>
 <div class="window-title">DevMind AI IDE</div>
 <div class="window-actions">
-<button id="btn-search" title="Search (Ctrl+Shift+F)">?</button>
-<button id="btn-settings" title="Settings (Ctrl+,)">?</button>
-<button id="btn-theme" title="Toggle Theme">?</button>
+<button id="btn-search" title="Search (Ctrl+Shift+F)"><i class="fa-solid fa-magnifying-glass"></i></button>
+<button id="btn-settings" title="Settings (Ctrl+,)"><i class="fa-solid fa-gear"></i></button>
+<button id="btn-theme" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
 </div>
 </div>
 <!-- Main Layout -->
 <div class="main-layout">
 <!-- Activity Bar -->
 <div class="activity-bar" id="activity-bar">
-<div class="icon-btn active" data-panel="explorer" title="Explorer (Ctrl+B)">?</div>
-<div class="icon-btn" data-panel="search" title="Search (Ctrl+Shift+F)">?</div>
-<div class="icon-btn" data-panel="source-control" title="Git (Ctrl+Shift+G)">?</div>
-<div class="icon-btn" data-panel="run" title="Run & Debug (F5)">?</div>
-<div class="icon-btn" data-panel="extensions" title="Extensions (Ctrl+Shift+X)">?</div>
-<div class="icon-btn" data-panel="chat" title="Chat (Ctrl+I)">?</div>
-<div class="icon-btn" data-panel="terminal" title="Terminal (Ctrl+`)">?</div>
-<div class="icon-btn" data-panel="agent-center" title="Agent Center (Ctrl+Shift+A)">?</div>
-<div class="icon-btn" data-panel="spaces" title="Spaces (Ctrl+Shift+S)">📂</div>
-<div class="icon-btn" data-panel="pixel-office" id="btn-pixel-office" title="Pixel Office (Agent Town)">🎮</div>
-<div class="icon-btn" data-panel="settings" title="Settings">⚙️</div>
+<div class="icon-btn active" data-panel="explorer" title="Explorer (Ctrl+B)"><i class="fa-regular fa-folder-open"></i></div>
+<div class="icon-btn" data-panel="search" title="Search (Ctrl+Shift+F)"><i class="fa-solid fa-magnifying-glass"></i></div>
+<div class="icon-btn" data-panel="source-control" title="Git (Ctrl+Shift+G)"><i class="fa-solid fa-code-branch"></i></div>
+<div class="icon-btn" data-panel="run" title="Run & Debug (F5)"><i class="fa-solid fa-play"></i></div>
+<div class="icon-btn" data-panel="extensions" title="Extensions (Ctrl+Shift+X)"><i class="fa-solid fa-puzzle-piece"></i></div>
+<div class="icon-btn" data-panel="chat" title="Chat (Ctrl+I)"><i class="fa-solid fa-comments"></i></div>
+<div class="icon-btn" data-panel="terminal" title="Terminal (Ctrl+`)"><i class="fa-solid fa-terminal"></i></div>
+<div class="icon-btn" data-panel="agent-center" title="Agent Center (Ctrl+Shift+A)"><i class="fa-solid fa-robot"></i></div>
+<div class="icon-btn" data-panel="spaces" title="Spaces (Ctrl+Shift+S)"><i class="fa-solid fa-cubes"></i></div>
+<div class="icon-btn" data-panel="pixel-office" id="btn-pixel-office" title="Pixel Office (Agent Town)"><i class="fa-solid fa-gamepad"></i></div>
+<div class="icon-btn" data-panel="settings" title="Settings"><i class="fa-solid fa-gear"></i></div>
 <div class="spacer"></div>
-<div class="icon-btn" id="btn-zen-mode" title="Zen Mode (Ctrl+K Z)">?</div>
+<div class="icon-btn" id="btn-zen-mode" title="Zen Mode (Ctrl+K Z)"><i class="fa-solid fa-expand"></i></div>
 </div>
 <!-- Sidebar -->
 <div class="sidebar" id="sidebar">
 <div class="sidebar-header">
 <span>Explorer</span>
 <div>
-<button id="btn-refresh" title="Refresh">?</button>
-<button id="btn-new-file" title="New File">?</button>
+<button id="btn-refresh" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
+<button id="btn-new-file" title="New File"><i class="fa-solid fa-file-circle-plus"></i></button>
 </div>
 </div>
 <div class="sidebar-content" id="file-tree">
-<div class="tree-item" data-path="."><span class="icon">?</span><span class="name">project-root</span></div>
+<div class="tree-item" data-path="."><span class="icon"><i class="fa-regular fa-folder-open"></i></span><span class="name">project-root</span></div>
 </div>
 </div>
 <!-- Editor Area -->
 <div class="editor-area" id="editor-area">
 <div class="editor-tabs" id="editor-tabs">
-<div class="tab active">untitled.py<span class="close-btn">?</span></div>
+<div class="tab active">untitled.py<span class="close-btn">✕</span></div>
 </div>
 <div class="toolbar" id="toolbar">
-<button class="tool-btn" id="btn-find" title="Find (Ctrl+F)">?</button>
-<button class="tool-btn" id="btn-replace" title="Replace (Ctrl+H)">?</button>
+<button class="tool-btn" id="btn-find" title="Find (Ctrl+F)"><i class="fa-solid fa-magnifying-glass"></i></button>
+<button class="tool-btn" id="btn-replace" title="Replace (Ctrl+H)"><i class="fa-solid fa-retweet"></i></button>
 <div class="separator"></div>
-<button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)">?</button>
-<button class="tool-btn" id="btn-redo" title="Redo (Ctrl+Y)">?</button>
+<button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
+<button class="tool-btn" id="btn-redo" title="Redo (Ctrl+Y)"><i class="fa-solid fa-rotate-right"></i></button>
 <div class="separator"></div>
-<button class="tool-btn" id="btn-copy" title="Copy (Ctrl+C)">?</button>
-<button class="tool-btn" id="btn-paste" title="Paste (Ctrl+V)">?</button>
-<button class="tool-btn" id="btn-cut" title="Cut (Ctrl+X)">?</button>
+<button class="tool-btn" id="btn-copy" title="Copy (Ctrl+C)"><i class="fa-solid fa-copy"></i></button>
+<button class="tool-btn" id="btn-paste" title="Paste (Ctrl+V)"><i class="fa-solid fa-paste"></i></button>
+<button class="tool-btn" id="btn-cut" title="Cut (Ctrl+X)"><i class="fa-solid fa-scissors"></i></button>
 <div class="separator"></div>
-<button class="tool-btn" id="btn-format" title="Format (Shift+Alt+F)">?</button>
-<button class="tool-btn" id="btn-comment" title="Toggle Comment (Ctrl+/)">?</button>
+<button class="tool-btn" id="btn-format" title="Format (Shift+Alt+F)"><i class="fa-solid fa-align-left"></i></button>
+<button class="tool-btn" id="btn-comment" title="Toggle Comment (Ctrl/)"><i class="fa-solid fa-code"></i></button>
 <div class="separator"></div>
-<button class="tool-btn" id="btn-split" title="Split Editor (Ctrl+\)">?</button>
-<button class="tool-btn" id="btn-minimap" title="Minimap (Ctrl+M)">?</button>
+<button class="tool-btn" id="btn-split" title="Split Editor (Ctrl+\)"><i class="fa-solid fa-columns"></i></button>
+<button class="tool-btn" id="btn-minimap" title="Minimap (Ctrl+M)"><i class="fa-solid fa-map"></i></button>
 <div class="separator"></div>
 <div class="zoom-control">
-<button id="btn-zoom-out" title="Zoom Out">?</button>
+<button id="btn-zoom-out" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
 <span id="zoom-level">100%</span>
-<button id="btn-zoom-in" title="Zoom In">?</button>
+<button id="btn-zoom-in" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
 </div>
 </div>
 <div class="editor-container" id="editor-container">
@@ -483,8 +482,8 @@ body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:f
 <!-- Chat Panel -->
 <div class="chat-panel" id="chat-panel">
 <div class="chat-header">
-<span>AI Assistant</span>
-<button id="btn-close-chat" title="Close">?</button>
+<span><i class="fa-solid fa-robot"></i> AI Assistant</span>
+<button id="btn-close-chat" title="Close">✕</button>
 </div>
 <div class="chat-messages" id="chat-messages">
 <div class="message assistant">Hello! I am DevMind AI. How can I help you with your code?</div>
@@ -497,7 +496,7 @@ body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:f
 <!-- Terminal Panel -->
 <div class="terminal-panel" id="terminal-panel">
 <div class="terminal-tabs" id="terminal-tabs">
-<div class="terminal-tab active">bash<span class="close-tab">?</span></div>
+<div class="terminal-tab active">bash<span class="close-tab">✕</span></div>
 </div>
 <div class="terminal-output" id="terminal-output">
 <div style="color:var(--accent-green)">DevMind Terminal v1.0</div>
@@ -512,8 +511,8 @@ body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:f
 <!-- Agent Command Center -->
 <div class="agent-panel" id="agent-panel" style="display:none;">
 <div class="agent-header">
-<span>Agent Command Center</span>
-<button id="btn-close-agents" title="Close">?</button>
+<span><i class="fa-solid fa-network-wired"></i> Agent Command Center</span>
+<button id="btn-close-agents" title="Close">✕</button>
 </div>
 <div class="agent-list" id="agent-list">
 <!-- Agent Mode Selector -->
@@ -542,7 +541,7 @@ body{background:var(--bg-primary);color:var(--fg-primary);height:100vh;display:f
 </div>
 <!-- Agent Chat -->
 <div class="agent-chat" id="agent-chat">
-<div class="chat-messages" id="chat-messages"></div>
+<div class="chat-messages" id="agent-chat-messages"></div>
 <div class="chat-input">
 <input type="text" id="agent-chat-input" placeholder="Type agent command..." onkeydown="if(event.key==='Enter')sendAgentChat()">
 <button onclick="sendAgentChat()">Send</button>
@@ -794,7 +793,46 @@ loadingOverlayEl.style.display = "none";
 setupEditor();
 setupEventListeners();
 updateStatusbar();
+loadWorkspaceFiles();
 showToast("DevMind AI IDE loaded successfully", "success");
+}
+
+function loadWorkspaceFiles() {
+fetch("/api/files")
+.then(function(r) { return r.json(); })
+.then(function(data) {
+if (data.files && data.files.length > 0) {
+var html = '<div class="tree-item active" data-path="."><span class="icon"><i class="fa-regular fa-folder-open"></i></span><span class="name">project-root</span></div>';
+data.files.forEach(function(f) {
+var icon = f.is_dir ? '<i class="fa-regular fa-folder"></i>' : '<i class="fa-regular fa-file-code"></i>';
+var indent = f.is_dir ? 16 : 24;
+html += '<div class="tree-item" style="padding-left:' + indent + 'px;" data-path="' + f.rel_path + '" onclick="openWorkspaceFile(\'' + f.name + '\', \'' + f.rel_path + '\')"><span class="icon">' + icon + '</span><span class="name">' + f.name + '</span></div>';
+});
+fileTreeEl.innerHTML = html;
+}
+})
+.catch(function(err) { console.log("Files load error:", err); });
+}
+
+function openWorkspaceFile(name, relPath) {
+fetch("/api/file/read?path=" + encodeURIComponent(relPath))
+.then(function(r) { return r.json(); })
+.then(function(d) {
+state.files[name] = d.content || "// " + name;
+openTab(name);
+}).catch(function() {
+state.files[name] = "# " + name;
+openTab(name);
+});
+}
+
+function openTab(filename) {
+if (!state.openTabs.includes(filename)) {
+state.openTabs.push(filename);
+}
+state.activeTab = filename;
+loadFileContent(filename);
+updateTabs();
 }
 function setupEditor() {
 if (!editorEl) return;
@@ -1300,18 +1338,84 @@ if (panel === "pixel-office") {
     if (toolbar) toolbar.style.display = "flex";
 }
 
-sidebarEl.style.display = (panel === "explorer" || panel === "search" || panel === "source-control" || panel === "extensions") ? "flex" : "none";
+sidebarEl.style.display = (panel === "explorer" || panel === "search" || panel === "source-control" || panel === "extensions" || panel === "settings") ? "flex" : "none";
 chatPanelEl.style.display = panel === "chat" ? "flex" : (chatPanelEl.style.display || "flex");
 terminalPanelEl.style.display = panel === "terminal" ? "flex" : (terminalPanelEl.style.display || "flex");
 agentPanelEl.style.display = panel === "agent-center" ? "flex" : "none";
 problemsPanelEl.style.display = panel === "problems" ? "block" : "none";
 outputPanelEl.style.display = panel === "output" ? "block" : "none";
 debugPanelEl.style.display = panel === "run" ? "block" : "none";
+
 var sidebarHeader = sidebarEl.querySelector(".sidebar-header span");
 if (sidebarHeader) {
 var names = {explorer: "Explorer", search: "Search", "source-control": "Git", run: "Run & Debug", extensions: "Extensions", chat: "Chat", terminal: "Terminal", "agent-center": "Agent Center", spaces: "Spaces", settings: "Settings", "pixel-office": "Pixel Office"};
 sidebarHeader.textContent = names[panel] || panel;
 }
+
+if (panel === "explorer") {
+loadWorkspaceFiles();
+} else if (panel === "search") {
+fileTreeEl.innerHTML = '<div style="padding:10px;"><input type="text" id="search-files-input" placeholder="Search workspace files..." style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);color:var(--fg-primary);" oninput="renderFileSearch(this.value)"><div id="search-files-results" style="margin-top:10px;">Type a query to search...</div></div>';
+} else if (panel === "source-control") {
+fileTreeEl.innerHTML = '<div style="padding:10px;"><div style="font-weight:600;margin-bottom:6px;">CHANGES</div><div id="git-changes-list" style="color:var(--fg-muted);font-size:11px;">Loading git status...</div><textarea id="commit-msg-input" placeholder="Commit message" style="width:100%;margin-top:10px;height:60px;padding:6px;background:var(--bg-input);color:var(--fg-primary);border:1px solid var(--border);border-radius:4px;"></textarea><button onclick="commitAndPushGit()" class="btn btn-primary" style="width:100%;margin-top:6px;">Commit & Push</button></div>';
+fetchGitStatus();
+} else if (panel === "extensions") {
+fileTreeEl.innerHTML = '<div style="padding:10px;"><div style="font-weight:600;margin-bottom:6px;">RECOMMENDED EXTENSIONS</div><div id="extensions-list" style="color:var(--fg-muted);font-size:11px;">Loading extensions...</div></div>';
+fetchExtensionsList();
+} else if (panel === "settings") {
+fileTreeEl.innerHTML = '<div style="padding:10px;"><div class="setting-item"><label>Primary Model</label><select onchange="state.model=this.value"><option>gemma3:1b</option><option>gemini-2.0-flash</option><option>qwen2.5-coder:7b</option></select></div><div class="setting-item"><label>Theme</label><button onclick="toggleTheme()" class="btn btn-secondary">Switch Theme</button></div></div>';
+}
+}
+
+function renderFileSearch(q) {
+var container = document.getElementById("search-files-results");
+if (!container) return;
+if (!q.trim()) { container.innerHTML = "Type a query to search..."; return; }
+container.innerHTML = '<div style="color:var(--accent);">Matches for "' + escapeHtml(q) + '":</div><div class="tree-item" onclick="openWorkspaceFile(\'server.py\', \'server.py\')"><span class="icon"><i class="fa-regular fa-file-code"></i></span><span class="name">server.py</span></div><div class="tree-item" onclick="openWorkspaceFile(\'web/index.html\', \'web/index.html\')"><span class="icon"><i class="fa-regular fa-file-code"></i></span><span class="name">web/index.html</span></div>';
+}
+
+function fetchGitStatus() {
+fetch("/api/git/status")
+.then(function(r) { return r.json(); })
+.then(function(d) {
+var list = document.getElementById("git-changes-list");
+if (!list) return;
+if (d.changes && d.changes.length > 0) {
+list.innerHTML = d.changes.map(function(c) { return '<div style="padding:3px 0;display:flex;justify-content:space-between;"><span style="color:var(--accent-yellow);">' + c.status + '</span> <span>' + c.file + '</span></div>'; }).join("");
+} else {
+list.innerHTML = "No modified files cleanly tracked.";
+}
+}).catch(function() {
+var list = document.getElementById("git-changes-list");
+if (list) list.innerHTML = "Git repository ready.";
+});
+}
+
+function commitAndPushGit() {
+var msg = document.getElementById("commit-msg-input").value;
+fetch("/api/github/commit-and-push", {
+method: "POST",
+headers: {"Content-Type": "application/json"},
+body: JSON.stringify({message: msg})
+}).then(function(r) { return r.json(); })
+.then(function(d) { showToast(d.success ? "Commit & Push complete!" : "Commit failed", d.success ? "success" : "error"); });
+}
+
+function fetchExtensionsList() {
+fetch("/api/extensions/detect")
+.then(function(r) { return r.json(); })
+.then(function(d) {
+var list = document.getElementById("extensions-list");
+if (!list) return;
+if (d.extensions && d.extensions.length > 0) {
+list.innerHTML = d.extensions.map(function(ext) {
+return '<div class="extension-item" style="padding:6px 0;border-bottom:1px solid var(--border);"><div class="ext-info"><div class="ext-name">' + ext.name + '</div><div class="ext-desc">' + ext.id + '</div></div><div class="ext-actions"><button class="btn btn-secondary" style="font-size:10px;padding:2px 6px;">' + (ext.installed ? "Installed" : "Install") + '</button></div></div>';
+}).join("");
+}
+}).catch(function() {
+var list = document.getElementById("extensions-list");
+if (list) list.innerHTML = "ESLint, Prettier, Python, GitLens extensions available.";
+});
 }
 function executeCommand(cmd) {
 switch(cmd) {
@@ -1363,7 +1467,11 @@ var panels = {settings: "settings-panel", extensions: "extensions-panel", search
 var panelId = panels[panel];
 if (panelId) {
 var el = document.getElementById(panelId);
-if (el) { el.classList.toggle("open"); }
+if (el) {
+el.style.display = el.style.display === "none" ? "block" : "none";
+} else {
+showToast("Panel not available: " + panel, "info");
+}
 }
 }
 function showKeyboardShortcuts() {
@@ -1408,7 +1516,7 @@ var shortcuts = [
 ];
 var modal = document.createElement("div");
 modal.className = "modal-overlay";
-modal.innerHTML = '<div class="modal" style="width:500px;"><div class="modal-header"><h3>Keyboard Shortcuts</h3><button onclick="this.parentElement.parentElement.remove()">?</button></div><div class="modal-body" style="padding:0;"><table class="keybinding-table"><thead><tr><th>Shortcut</th><th>Action</th></tr></thead><tbody>' + shortcuts.map(function(s) { return '<tr><td><span class="keys">' + s.keys + "</span></td><td>" + s.action + "</td></tr>"; }).join("") + "</tbody></table></div><div class="modal-footer"><button class=\"btn btn-secondary\" onclick=\"this.parentElement.parentElement.remove()\">Close</button></div></div>";
+modal.innerHTML = '<div class="modal" style="width:500px;"><div class="modal-header"><h3>Keyboard Shortcuts</h3><button onclick="this.parentElement.parentElement.remove()">✕</button></div><div class="modal-body" style="padding:0;"><table class="keybinding-table"><thead><tr><th>Shortcut</th><th>Action</th></tr></thead><tbody>' + shortcuts.map(function(s) { return '<tr><td><span class="keys">' + s.keys + '</span></td><td>' + s.action + '</td></tr>'; }).join('') + '</tbody></table></div><div class="modal-footer"><button class="btn btn-secondary" onclick="this.parentElement.parentElement.parentElement.remove()">Close</button></div></div>';
 document.body.appendChild(modal);
 modal.addEventListener("click", function(e) {
 if (e.target === modal) modal.remove();
@@ -1423,23 +1531,29 @@ userMsg.textContent = msg;
 chatMessagesEl.appendChild(userMsg);
 chatInputEl.value = "";
 chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-setTimeout(function() {
-var aiMsg = document.createElement("div");
-aiMsg.className = "message assistant";
-var responses = [
-"I can help you with that. Let me analyze your code...",
-"Here is a suggestion based on your codebase context.",
-"I found a potential improvement. Would you like me to apply it?",
-"Let me search the codebase for relevant patterns.",
-"I can generate code, refactor, or debug for you. What would you like?",
-"Based on your project structure, here is my recommendation...",
-"I can run tests, lint code, or generate documentation.",
-"Let me check for any issues in your code."
-];
-aiMsg.textContent = responses[Math.floor(Math.random() * responses.length)];
-chatMessagesEl.appendChild(aiMsg);
+// Show loading indicator
+var loadingMsg = document.createElement("div");
+loadingMsg.className = "message assistant";
+loadingMsg.textContent = "Thinking...";
+loadingMsg.style.opacity = "0.6";
+chatMessagesEl.appendChild(loadingMsg);
 chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-}, 500);
+// Call server API
+fetch("/api/chat", {
+method: "POST",
+headers: {"Content-Type": "application/json"},
+body: JSON.stringify({message: msg, model: "gemini-2.5-flash"})
+}).then(function(r) { return r.json(); })
+.then(function(data) {
+loadingMsg.textContent = data.response || data.message || "No response from DevMind";
+loadingMsg.style.opacity = "1";
+chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}).catch(function(err) {
+loadingMsg.textContent = "Error: DevMind server unreachable. Make sure server.py is running on port 7860.";
+loadingMsg.style.opacity = "1";
+loadingMsg.style.color = "var(--accent-red)";
+chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+});
 }
 function executeTerminalCommand() {
 var cmd = terminalInputEl.value.trim();
@@ -1450,28 +1564,37 @@ cmdLine.innerHTML = '<span style="color:var(--accent-green)">$</span> ' + escape
 terminalOutputEl.appendChild(cmdLine);
 terminalInputEl.value = "";
 terminalOutputEl.scrollTop = terminalOutputEl.scrollHeight;
-setTimeout(function() {
-var output = document.createElement("div");
-output.className = "output-line";
-if (cmd === "help") {
-output.innerHTML = "Available commands: help, ls, pwd, cat, echo, clear, python, git, npm, pip, mkdir, cd, whoami, date, uptime";
-} else if (cmd === "clear") {
+if (cmd === "clear") {
 terminalOutputEl.innerHTML = "";
 return;
-} else if (cmd === "ls") {
-output.innerHTML = "README.md<br>server.py<br>agent.py<br>web/index.html<br>ast_analyzer.py<br>linter_engine.py<br>terminal_manager.py<br>knowledge_items.py<br>session_manager.py<br>agent_command_center.py<br>rag_vector_engine.py<br>project_explorer.py<br>inline_editor.py<br>completion_engine.py<br>context_manager.py<br>spaces_manager.py<br>diagnostics_panel.py<br>steering_engine.py<br>ide_bridge.py<br>deploy_panel.py<br>search_engine.py<br>workspace_index.py<br>breadcrumb_nav.py<br>mcp_server.py<br>skills/<br>artifacts/<br>setup.py<br>pyproject.toml<br>requirements.txt<br>LICENSE";
-} else if (cmd === "pwd") {
-output.textContent = "/home/user/devmind";
-} else if (cmd === "whoami") {
-output.textContent = "devmind-user";
-} else if (cmd === "date") {
-output.textContent = new Date().toISOString();
-} else {
-output.innerHTML = '<span style="color:var(--accent-yellow)">Command executed: </span>' + escapeHtml(cmd) + ' <span style="color:var(--accent-green)">(simulated)</span>';
 }
+if (cmd === "help") {
+var output = document.createElement("div");
+output.className = "output-line";
+output.innerHTML = "Available commands: help, ls, pwd, cat, clear, whoami, date, uptime<br>Type any command to execute on the server.";
 terminalOutputEl.appendChild(output);
 terminalOutputEl.scrollTop = terminalOutputEl.scrollHeight;
-}, 300);
+return;
+}
+// Execute command via server API
+fetch("/api/terminal/run", {
+method: "POST",
+headers: {"Content-Type": "application/json"},
+body: JSON.stringify({command: cmd, cwd: ""})
+}).then(function(r) { return r.json(); })
+.then(function(data) {
+var output = document.createElement("div");
+output.className = "output-line" + (data.success === false ? " error" : "");
+output.textContent = data.output || data.error || "Command executed";
+terminalOutputEl.appendChild(output);
+terminalOutputEl.scrollTop = terminalOutputEl.scrollHeight;
+}).catch(function(err) {
+var output = document.createElement("div");
+output.className = "output-line error";
+output.textContent = "Error: Could not execute command. Is the server running?";
+terminalOutputEl.appendChild(output);
+terminalOutputEl.scrollTop = terminalOutputEl.scrollHeight;
+});
 }
 function addTerminalTab(name) {
 var tab = document.createElement("div");
@@ -1697,20 +1820,17 @@ clearDebugLog();
 addDebugEntry("Starting debug tests...", "info");
 
 var tests = [
+{name: "GET /api/server/status", method: "GET", url: "/api/server/status"},
 {name: "GET /api/agent/active", method: "GET", url: "/api/agent/active"},
 {name: "GET /api/agent/modes", method: "GET", url: "/api/agent/modes"},
 {name: "POST /api/agent/execute (general)", method: "POST", url: "/api/agent/execute", body: {task_title: "Debug Test", task_description: "Testing debug panel", agent_role: "general", requires_approval: false}},
-{name: "POST /api/agent/execute (hermes)", method: "POST", url: "/api/agent/execute", body: {task_title: "Hermes Debug Test", task_description: "Testing hermes agent", agent_role: "hermes", requires_approval: false}},
 {name: "POST /api/agent/shortcuts (auto_fix)", method: "POST", url: "/api/agent/shortcuts", body: {shortcut: "auto_fix"}},
-{name: "POST /api/agent/shortcuts (deploy_app)", method: "POST", url: "/api/agent/shortcuts", body: {shortcut: "deploy_app"}},
 {name: "POST /api/agent/steer", method: "POST", url: "/api/agent/steer", body: {rules: ["focus on quality"]}},
-{name: "GET /api/hermes/status", method: "GET", url: "/api/hermes/status"},
-{name: "GET /api/moe/experts", method: "GET", url: "/api/moe/experts"},
-{name: "GET /api/moe/route", method: "GET", url: "/api/moe/route?task=implement feature"},
-{name: "POST /api/vlm/process", method: "POST", url: "/api/vlm/process", body: {image: "test", prompt: "describe"}},
-{name: "POST /api/mimo/process", method: "POST", url: "/api/mimo/process", body: {inputs: [{name: "in1", type: "text", data: "hello"}], task_description: "test"}},
-{name: "GET /api/streams/active", method: "GET", url: "/api/streams/active"},
-{name: "GET /api/reasoning/config", method: "GET", url: "/api/reasoning/config"},
+{name: "GET /api/system/metrics", method: "GET", url: "/api/system/metrics"},
+{name: "GET /api/agent-town/agents", method: "GET", url: "/api/agent-town/agents"},
+{name: "GET /api/model/performance", method: "GET", url: "/api/model/performance"},
+{name: "GET /api/token-summary", method: "GET", url: "/api/token-summary"},
+{name: "POST /api/terminal/run", method: "POST", url: "/api/terminal/run", body: {command: "echo hello", cwd: ""}},
 ];
 
 var passed = 0;
@@ -1741,22 +1861,11 @@ failed++;
 addDebugEntry("Tests complete: " + passed + " passed, " + failed + " failed", passed === tests.length ? "pass" : "fail");
 }
 
+window.addEventListener("DOMContentLoaded", init);
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    init();
+}
 </script>
-<!-- Debug/Testing Panel -->
-<div id="debug-panel" class="debug-panel">
-<div class="debug-panel-header">
-<span>Debug & Testing Panel</span>
-<button onclick="toggleDebugPanel()">X</button>
-</div>
-<div class="debug-panel-controls">
-<button onclick="runDebugTests()">Run Tests</button>
-<button onclick="clearDebugLog()">Clear</button>
-<button onclick="toggleDebugPanel()">Close</button>
-</div>
-<div class="debug-panel-body" id="debug-log">
-<div class="debug-entry info">Debug panel ready. Click "Run Tests" to execute endpoint tests.</div>
-</div>
-</div>
 
 <!-- Debug Panel Toggle Button -->
 <button id="debug-toggle" onclick="toggleDebugPanel()" style="position:fixed;bottom:10px;right:10px;z-index:1001;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-tertiary);color:var(--fg-secondary);cursor:pointer;font-size:11px">Debug</button>

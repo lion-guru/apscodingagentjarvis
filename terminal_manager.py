@@ -145,7 +145,10 @@ def execute_command(session_id: str, command: str) -> dict:
     return terminal_manager.execute_command(session_id, command)
 
 def get_output(session_id: str, tail: int = 100) -> list:
-    return terminal_manager.get_output(session_id, tail)
+    output = terminal_manager.get_output(session_id)
+    if tail and len(output) > tail:
+        output = output[-tail:]
+    return output
 
 def kill_session(session_id: str) -> dict:
     return terminal_manager.kill_session(session_id)

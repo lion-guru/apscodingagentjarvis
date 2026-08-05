@@ -1,7 +1,10 @@
 import os
 import requests
 
-api_key = "AIzaSyCBNZupHm-q1iLcmeI2MzkzgT91YydOTBY"
+api_key = os.getenv("GEMINI_API_KEY", "")
+if not api_key:
+    print("Error: GEMINI_API_KEY environment variable not set")
+    exit(1)
 url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
 
 try:

@@ -1,16 +1,31 @@
 """
-Self-Healing Workflow System for Jarvis/DevMind
-Inspired by santhanam-15/Jarvis - Auto-recovery on failure
+Self-Healing Workflow System for DevMind
+Inspired by Windsurf Cascade / OpenCode Agent Loops
+Auto-recovery on tool execution failures with adaptive replanning
 """
 import os
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from enum import Enum
 import time
 import subprocess
 
 WORKFLOW_LOG = Path(".devmind") / "workflow_failures.json"
 WORKFLOW_LOG.parent.mkdir(parents=True, exist_ok=True)
+
+class ErrorType(Enum):
+    SYNTAX_ERROR = "syntax_error"
+    PERMISSION_DENIED = "permission_denied"
+    FILE_NOT_FOUND = "file_not_found"
+    NETWORK_TIMEOUT = "network_timeout"
+    TOOL_NOT_FOUND = "tool_not_found"
+    COMMAND_FAILED = "command_failed"
+    MCP_TOOL_MISSING = "mcp_tool_missing"
+    MCP_SERVER_DOWN = "mcp_server_down"
+    DEPENDENCY_MISSING = "dependency_missing"
+    RESOURCE_EXHAUSTED = "resource_exhausted"
+    UNKNOWN = "unknown"
 
 class SelfHealingWorkflow:
     def __init__(self):
@@ -19,7 +34,6 @@ class SelfHealingWorkflow:
         self.load_failure_data()
 
     def load_failure_data(self):
-        """Load failure patterns and healing strategies"""
         if WORKFLOW_LOG.exists():
             try:
                 with open(WORKFLOW_LOG, 'r', encoding='utf-8') as f:
@@ -30,211 +44,234 @@ class SelfHealingWorkflow:
                 pass
 
     def save_failure_data(self):
-        """Save failure patterns and healing strategies"""
         with open(WORKFLOW_LOG, 'w', encoding='utf-8') as f:
             json.dump({
                 "failure_patterns": self.failure_patterns,
                 "healing_strategies": self.healing_strategies
-            }, f, indent=2)
+            }, f, indent=2, default=str)
 
-    def record_failure(self, task: str, error: str, context: str = ""):
-        """Record a failure pattern"""
-        # Extract error type
-        error_type = self.classify_error(error)
-        
+    def classify_error(self, error: str, context: dict = None) -> ErrorType:
+        """Classify error with tool-specific awareness"""
+        error_lower = error.lower()
+        tool = (context or {}).get("tool", "").lower()
+
+        if "syntaxerror" in error_lower or "parseerror" in error_lower:
+            return ErrorType.SYNTAX_ERROR
+        if "permission denied" in error_lower or "access is denied" in error_lower:
+            return ErrorType.PERMISSION_DENIED
+        if "no such file" in error_lower or "file not found" in error_lower:
+            return ErrorType.FILE_NOT_FOUND
+        if "connection timeout" in error_lower or "timed out" in error_lower or "network is unreachable" in error_lower:
+            return ErrorType.NETWORK_TIMEOUT
+        if "command not found" in error_lower or "not recognized as" in error_lower:
+            return ErrorType.TOOL_NOT_FOUND
+        if "module" in error_lower and "not found" in error_lower or "importerror" in error_lower:
+            return ErrorType.DEPENDENCY_MISSING
+        if "out of memory" in error_lower or "oom" in error_lower:
+            return ErrorType.RESOURCE_EXHAUSTED
+
+        if "mcp" in tool:
+            if "tool not found" in error_lower:
+                return ErrorType.MCP_TOOL_MISSING
+            if "server disconnected" in error_lower or "broken pipe" in error_lower:
+                return ErrorType.MCP_SERVER_DOWN
+
+        if error_lower.startswith("traceback") or "exception" in error_lower:
+            return ErrorType.COMMAND_FAILED
+
+        return ErrorType.UNKNOWN
+
+    def attempt_healing(self, task: str, error: str, context: dict = None) -> Dict[str, Any]:
+        """Attempt to heal a failed tool execution with auto-retry params"""
+        ctx = context or {}
+        error_type = self.classify_error(error, ctx)
+        attempt = ctx.get("attempt", 0)
+        tool = ctx.get("tool", "unknown")
+
+        self._record_failure(task, error, ctx)
+
+        healing = self._get_healing_strategy(error_type, tool, attempt, ctx)
+
+        return {
+            "healed": healing["can_auto_fix"],
+            "error_type": error_type.value,
+            "strategy": healing["strategy"],
+            "adjusted_params": healing.get("adjusted_params"),
+            "fallback_advice": healing["fallback_advice"],
+            "requires_approval": healing.get("requires_approval", False),
+        }
+
+    def _get_healing_strategy(self, error_type: ErrorType, tool: str, attempt: int, ctx: dict) -> dict:
+        """Generate tool-specific healing strategy with adjusted params"""
+        params = ctx.get("params", {})
+        cwd = ctx.get("cwd", os.getcwd())
+
+        if error_type == ErrorType.NETWORK_TIMEOUT:
+            timeout = min(params.get("timeout", 60) * (2 ** attempt), 300)
+            return {
+                "can_auto_fix": True,
+                "strategy": f"Retry with increased timeout ({timeout}s) + offline fallback",
+                "adjusted_params": {**params, "timeout": timeout},
+                "fallback_advice": "Check internet connection, use local cache, or disable proxy",
+            }
+
+        if error_type == ErrorType.TOOL_NOT_FOUND:
+            missing = self._extract_missing_tool(error_type, ctx)
+            if missing:
+                install_cmd = f"choco install {missing} -y" if os.name == "nt" else f"sudo apt-get install -y {missing}"
+                return {
+                    "can_auto_fix": True,
+                    "strategy": f"Install missing tool: {missing}",
+                    "adjusted_params": {"command": install_cmd, "cwd": cwd},
+                    "fallback_advice": f"Install {missing} manually via package manager",
+                    "requires_approval": True,
+                }
+            return {
+                "can_auto_fix": False,
+                "strategy": "Unknown missing tool",
+                "fallback_advice": "Check command spelling and available tools",
+            }
+
+        if error_type == ErrorType.PERMISSION_DENIED:
+            return {
+                "can_auto_fix": False,
+                "strategy": "Permission denied - requires elevated privileges",
+                "fallback_advice": "Approve elevated execution in DevMind UI",
+                "requires_approval": True,
+            }
+
+        if error_type == ErrorType.FILE_NOT_FOUND:
+            path = params.get("path", params.get("file_path", ""))
+            if path:
+                parent = os.path.dirname(os.path.abspath(path))
+                return {
+                    "can_auto_fix": True,
+                    "strategy": f"Create missing directories for: {path}",
+                    "adjusted_params": {**params, "path": os.path.abspath(path)},
+                    "fallback_advice": "Verify path spelling and case sensitivity",
+                }
+            return {
+                "can_auto_fix": False,
+                "strategy": "File not found",
+                "fallback_advice": "Check file path and ensure it exists",
+            }
+
+        if error_type == ErrorType.DEPENDENCY_MISSING:
+            module = self._extract_missing_module(error)
+            if module:
+                pip_cmd = f"pip install {module}"
+                return {
+                    "can_auto_fix": True,
+                    "strategy": f"Install missing dependency: {module}",
+                    "adjusted_params": {"command": pip_cmd, "cwd": cwd},
+                    "fallback_advice": f"Run: {pip_cmd}",
+                }
+            return {
+                "can_auto_fix": False,
+                "strategy": "Missing dependency",
+                "fallback_advice": "Install required packages manually",
+            }
+
+        if error_type == ErrorType.COMMAND_FAILED:
+            if attempt == 0:
+                return {
+                    "can_auto_fix": True,
+                    "strategy": "Retry command (transient failure)",
+                    "adjusted_params": params,
+                    "fallback_advice": "Check command syntax",
+                }
+            return {
+                "can_auto_fix": False,
+                "strategy": "Command failed after retry",
+                "fallback_advice": "Review error output and adjust approach",
+            }
+
+        if error_type == ErrorType.MCP_SERVER_DOWN:
+            server_name = params.get("server_name", "unknown")
+            return {
+                "can_auto_fix": True,
+                "strategy": f"Restart MCP server: {server_name}",
+                "adjusted_params": {"action": "restart_mcp_server", "server_name": server_name},
+                "fallback_advice": f"Manually restart MCP server: {server_name}",
+            }
+
+        if error_type == ErrorType.MCP_TOOL_MISSING:
+            return {
+                "can_auto_fix": True,
+                "strategy": "Re-register MCP tools",
+                "adjusted_params": {"action": "refresh_mcp_tools"},
+                "fallback_advice": "Check MCP server is running and tools are registered",
+            }
+
+        return {
+            "can_auto_fix": False,
+            "strategy": "Unknown error - manual review required",
+            "fallback_advice": "Check error logs and try a different approach",
+        }
+
+    def _extract_missing_tool(self, error_type: ErrorType, ctx: dict) -> str:
+        error = ctx.get("error", "")
+        for part in error.split():
+            clean = part.strip(":,.")
+            if clean in ["pip", "npm", "git", "docker", "node", "python", "code", "java", "go", "rustc"]:
+                return clean
+        return ""
+
+    def _extract_missing_module(self, error: str) -> str:
+        error_lower = error.lower()
+        if "no module named" in error_lower:
+            parts = error_lower.split("no module named")
+            if len(parts) > 1:
+                module = parts[1].strip().strip("'\"").split()[0].strip("'\".")
+                return module
+        return ""
+
+    def _record_failure(self, task: str, error: str, context: dict):
+        error_type = self.classify_error(error, context).value
         if error_type not in self.failure_patterns:
             self.failure_patterns[error_type] = []
-        
-        failure_record = {
+        record = {
             "task": task,
-            "error": error,
-            "context": context,
+            "error": error[:500],
+            "context": str(context)[:500],
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "occurrences": 1
         }
-        
-        # Check if similar failure exists
         for existing in self.failure_patterns[error_type]:
-            if existing["task"] == task and existing["error"] == error:
-                existing["occurrences"] += 1
-                existing["timestamp"] = failure_record["timestamp"]
+            if existing["task"] == task:
+                existing["occurrences"] = existing.get("occurrences", 1) + 1
+                existing["timestamp"] = record["timestamp"]
                 self.save_failure_data()
                 return
-        
-        self.failure_patterns[error_type].append(failure_record)
+        record["occurrences"] = 1
+        self.failure_patterns[error_type].append(record)
         self.save_failure_data()
 
-    def classify_error(self, error: str) -> str:
-        """Classify error type for pattern matching"""
-        error_lower = error.lower()
-        
-        if "syntax" in error_lower or "parse" in error_lower:
-            return "syntax_error"
-        elif "permission" in error_lower or "access" in error_lower:
-            return "permission_error"
-        elif "not found" in error_lower or "does not exist" in error_lower:
-            return "not_found_error"
-        elif "timeout" in error_lower or "timed out" in error_lower:
-            return "timeout_error"
-        elif "connection" in error_lower or "network" in error_lower:
-            return "network_error"
-        elif "sql" in error_lower or "database" in error_lower:
-            return "database_error"
-        elif "memory" in error_lower or "out of" in error_lower:
-            return "resource_error"
-        else:
-            return "unknown_error"
-
-    def generate_healing_strategy(self, error_type: str, task: str) -> str:
-        """Generate a healing strategy for a given error type"""
-        # Pre-defined healing strategies
-        strategies = {
-            "syntax_error": "Review the code for syntax errors, check brackets, quotes, and semicolons",
-            "permission_error": "Check file permissions, run with elevated privileges if needed",
-            "not_found_error": "Verify the file or resource exists, check the path",
-            "timeout_error": "Increase timeout duration, check network connectivity",
-            "network_error": "Check internet connection, retry the operation",
-            "database_error": "Check database connection, verify SQL syntax",
-            "resource_error": "Close unnecessary applications, increase available memory",
-            "unknown_error": "Review error logs, try a different approach"
-        }
-        
-        base_strategy = strategies.get(error_type, strategies["unknown_error"])
-        
-        # Add task-specific advice
-        task_lower = task.lower()
-        if "file" in task_lower:
-            base_strategy += ". Ensure file paths are correct and files exist."
-        elif "database" in task_lower:
-            base_strategy += ". Verify database credentials and table structure."
-        elif "api" in task_lower:
-            base_strategy += ". Check API endpoints and authentication."
-        
-        return base_strategy
-
-    def attempt_healing(self, task: str, error: str, context: str = "") -> Dict:
-        """Attempt to heal a failed task"""
-        error_type = self.classify_error(error)
-        
-        # Record the failure
-        self.record_failure(task, error, context)
-        
-        # Generate healing strategy
-        strategy = self.generate_healing_strategy(error_type, task)
-        
-        # Check if we have a healing strategy for this error type
-        if error_type in self.healing_strategies:
-            # Use existing strategy
-            healing_actions = self.healing_strategies[error_type]
-            return {
-                "healed": True,
-                "strategy": strategy,
-                "actions": healing_actions,
-                "error_type": error_type
-            }
-        else:
-            # Generate new strategy
-            healing_actions = self.generate_healing_actions(error_type, task)
-            self.healing_strategies[error_type] = healing_actions
-            self.save_failure_data()
-            
-            return {
-                "healed": False,
-                "strategy": strategy,
-                "actions": healing_actions,
-                "error_type": error_type,
-                "requires_manual_intervention": True
-            }
-
-    def generate_healing_actions(self, error_type: str, task: str) -> List[str]:
-        """Generate specific healing actions"""
-        actions = []
-        
-        if error_type == "syntax_error":
-            actions = [
-                "Run syntax checker on the file",
-                "Review line numbers in error message",
-                "Check for missing brackets or quotes"
-            ]
-        elif error_type == "permission_error":
-            actions = [
-                "Check file permissions",
-                "Run with elevated privileges if safe",
-                "Verify user has necessary access"
-            ]
-        elif error_type == "not_found_error":
-            actions = [
-                "Verify file or resource exists",
-                "Check path spelling and case",
-                "Ensure working directory is correct"
-            ]
-        elif error_type == "timeout_error":
-            actions = [
-                "Increase timeout duration",
-                "Check network connectivity",
-                "Retry the operation"
-            ]
-        elif error_type == "network_error":
-            actions = [
-                "Check internet connection",
-                "Verify API endpoint is accessible",
-                "Retry with exponential backoff"
-            ]
-        elif error_type == "database_error":
-            actions = [
-                "Check database connection",
-                "Verify SQL syntax",
-                "Check table and column names"
-            ]
-        else:
-            actions = [
-                "Review error logs",
-                "Try alternative approach",
-                "Check for missing dependencies"
-            ]
-        
-        return actions
-
     def get_failure_report(self) -> Dict:
-        """Get report of all failures and healing strategies"""
         return {
             "failure_patterns": self.failure_patterns,
             "healing_strategies": self.healing_strategies,
-            "total_failures": sum(len(patterns) for patterns in self.failure_patterns.values()),
-            "error_types": list(self.failure_patterns.keys())
+            "total_failures": sum(len(p) for p in self.failure_patterns.values()),
+            "error_types": list(self.failure_patterns.keys()),
         }
 
-# Global self-healing workflow instance
 self_healing_workflow = SelfHealingWorkflow()
 
-def attempt_heal(task: str, error: str, context: str = "") -> Dict:
-    """Public interface to attempt healing on a failed task"""
+def attempt_heal(task: str, error: str, context: dict = None) -> Dict[str, Any]:
     return self_healing_workflow.attempt_healing(task, error, context)
 
 def get_failure_report() -> Dict:
-    """Get failure report"""
     return self_healing_workflow.get_failure_report()
 
 if __name__ == "__main__":
-    # Test self-healing workflow
     print("Testing Self-Healing Workflow")
     print("=" * 50)
-    
-    # Simulate a failure
+
     result = attempt_heal(
-        task="Read file config.json",
-        error="FileNotFoundError: [Errno 2] No such file or directory: 'config.json'",
-        context="Configuration loading"
+        task="pip install requests",
+        error="ERROR: Connection timeout",
+        context={"tool": "terminal", "params": {"command": "pip install requests"}, "attempt": 0}
     )
-    
-    print(f"Healing Attempt:")
-    print(f"  Healed: {result['healed']}")
-    print(f"  Error Type: {result['error_type']}")
-    print(f"  Strategy: {result['strategy']}")
-    print(f"  Actions: {result['actions']}")
-    
-    # Get failure report
-    report = get_failure_report()
-    print(f"\nFailure Report:")
-    print(f"  Total Failures: {report['total_failures']}")
-    print(f"  Error Types: {report['error_types']}")
+    print(f"Error: {result['error_type']}")
+    print(f"Strategy: {result['strategy']}")
+    print(f"Auto-fix: {result['healed']}")
+    print(f"Adjusted params: {result['adjusted_params']}")

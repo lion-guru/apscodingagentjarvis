@@ -90,10 +90,16 @@ knowledge_items = KnowledgeItems()
 
 
 def add_item(title: str, content: str, category: str = "general", tags: list = None) -> dict:
-    return knowledge_items.add_item(title, content, category, tags)
+    metadata = {"category": category}
+    if tags:
+        metadata["tags"] = tags
+    return knowledge_items.add_item(title, content, metadata)
 
 def get_summaries(limit: int = 50) -> list:
-    return knowledge_items.get_summaries(limit)
+    return knowledge_items.get_summaries()[:limit]
 
 def search(query: str, category: str = "", limit: int = 20) -> list:
-    return knowledge_items.search(query, category, limit)
+    results = knowledge_items.search(query)
+    if category:
+        results = [r for r in results if r.get("metadata", {}).get("category") == category]
+    return results[:limit]

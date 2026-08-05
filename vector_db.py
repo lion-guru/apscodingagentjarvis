@@ -18,93 +18,113 @@ if env_path.exists():
 OLLAMA_BASE = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 DB_FILE = ".devmind_index.json"
 
-def get_embedding(text: str) -> list[float]:
-    """Fetch text embedding from Gemini API or local Ollama with aggressive fallbacks."""
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    
-    # 1. Try Gemini models
-    if gemini_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={gemini_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "model": "models/text-embedding-004",
-                "content": {"parts": [{"text": text}]}
-            }
-            resp = httpx.post(url, headers=headers, json=payload, timeout=5.0)
-            resp.raise_for_status()
-            return resp.json()["embedding"]["values"]
-        except Exception as e:
-            print(f"[Embedding Info] Gemini text-embedding-004 failed: {e}. Trying older embedding-001...")
-            
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key={gemini_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "model": "models/embedding-001",
-                "content": {"parts": [{"text": text}]}
-            }
-            resp = httpx.post(url, headers=headers, json=payload, timeout=5.0)
-            resp.raise_for_status()
-            return resp.json()["embedding"]["values"]
-        except Exception as e:
-            print(f"[Embedding Info] Gemini older embedding-001 failed: {e}. Falling back to Ollama...")
+# Preferred embedding models (multilingual, Hindi support)
+EMBEDDING_MODEL_PREF = os.getenv("EMBEDDING_MODEL", "nomic-embed-text-v2-moe")
 
-    # 2. Try Ollama models
-    ollama_models_to_try = ["nomic-embed-text"]
-    
-    # Dynamically fetch installed local models as fallbacks (so user doesn't have to pull nomic)
+# Devanagari detection for Hindi-aware embedding
+import re as _re
+_DEVANAGARI_RANGE = _re.compile(r'[\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F]')
+
+def _is_hindi(text: str) -> bool:
+    """Check if text contains Devanagari (Hindi) characters."""
+    return bool(_DEVANAGARI_RANGE.search(text))
+
+def _get_installed_models() -> list[str]:
+    """Fetch installed Ollama models."""
     try:
         resp = httpx.get(f"{OLLAMA_BASE}/api/tags", timeout=3.0)
         if resp.status_code == 200:
-            for m in resp.json().get("models", []):
-                name = m.get("name")
-                if name and name not in ollama_models_to_try:
-                    ollama_models_to_try.append(name)
+            return [m.get("name") for m in resp.json().get("models", []) if m.get("name")]
     except Exception:
         pass
-        
+    return []
+
+def _ollama_embed(model_name: str, text: str) -> list[float] | None:
+    """Try embedding with a specific Ollama model. Returns None on failure."""
+    # Try modern /api/embed first
+    try:
+        resp = httpx.post(
+            f"{OLLAMA_BASE}/api/embed",
+            json={"model": model_name, "input": text},
+            timeout=15.0
+        )
+        resp.raise_for_status()
+        res_json = resp.json()
+        if "embeddings" in res_json:
+            return res_json["embeddings"][0]
+        if "embedding" in res_json:
+            return res_json["embedding"]
+    except Exception:
+        pass
+
+    # Fallback to older /api/embeddings
+    try:
+        resp = httpx.post(
+            f"{OLLAMA_BASE}/api/embeddings",
+            json={"model": model_name, "prompt": text},
+            timeout=15.0
+        )
+        resp.raise_for_status()
+        res_json = resp.json()
+        if "embedding" in res_json:
+            return res_json["embedding"]
+    except Exception:
+        pass
+
+    return None
+
+def get_embedding(text: str) -> list[float]:
+    """
+    Fetch text embedding with Hindi-aware model selection.
+    For Hindi text, prefers nomic-embed-text-v2-moe (100 languages).
+    Falls back through Gemini → v2-moe → v1 → other installed models.
+    """
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    has_hindi = _is_hindi(text)
+
+    # 1. Try Gemini models (English only — skip for pure Hindi)
+    if gemini_key and not has_hindi:
+        for model_name in ["text-embedding-004", "embedding-001"]:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:embedContent?key={gemini_key}"
+                payload = {
+                    "model": f"models/{model_name}",
+                    "content": {"parts": [{"text": text}]}
+                }
+                resp = httpx.post(url, headers={"Content-Type": "application/json"},
+                                  json=payload, timeout=5.0)
+                resp.raise_for_status()
+                return resp.json()["embedding"]["values"]
+            except Exception as e:
+                print(f"[Embedding] Gemini {model_name} failed: {e}")
+
+    # 2. Try Ollama models — Hindi-aware ordering
+    installed = _get_installed_models()
+
+    # Build priority list: v2-moe first for Hindi, v1 for English
+    if has_hindi:
+        preferred = ["nomic-embed-text-v2-moe", "nomic-embed-text:latest"]
+    else:
+        preferred = ["nomic-embed-text:latest", "nomic-embed-text-v2-moe"]
+
+    # Add any other installed embedding models as fallbacks
+    for m in installed:
+        if m not in preferred and "embed" in m.lower():
+            preferred.append(m)
+
     last_err = None
-    for model_name in ollama_models_to_try:
-        # Try modern /api/embed
-        try:
-            resp = httpx.post(
-                f"{OLLAMA_BASE}/api/embed",
-                json={
-                    "model": model_name,
-                    "input": text
-                },
-                timeout=15.0
-            )
-            resp.raise_for_status()
-            res_json = resp.json()
-            if "embeddings" in res_json:
-                return res_json["embeddings"][0]
-            if "embedding" in res_json:
-                return res_json["embedding"]
-        except Exception as e:
-            last_err = e
-            
-        # Try older /api/embeddings
-        try:
-            resp = httpx.post(
-                f"{OLLAMA_BASE}/api/embeddings",
-                json={
-                    "model": model_name,
-                    "prompt": text
-                },
-                timeout=15.0
-            )
-            resp.raise_for_status()
-            res_json = resp.json()
-            if "embedding" in res_json:
-                return res_json["embedding"]
-        except Exception as e:
-            last_err = e
+    for model_name in preferred:
+        result = _ollama_embed(model_name, text)
+        if result is not None:
+            return result
+        last_err = f"Model {model_name} failed"
 
     raise RuntimeError(
-        f"Failed to generate embeddings using all available backends (Gemini APIs, nomic-embed-text, or local Ollama models).\n"
-        f"Please run 'ollama pull nomic-embed-text' or check your GEMINI_API_KEY.\nLast error: {last_err}"
+        f"Failed to generate embeddings.\n"
+        f"Hindi text: {has_hindi}\n"
+        f"Installed models: {installed}\n"
+        f"Fix: ollama pull nomic-embed-text-v2-moe\n"
+        f"Last error: {last_err}"
     )
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:

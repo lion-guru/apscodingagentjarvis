@@ -149,3 +149,19 @@ class InlineEditor:
 
 
 inline_editor = InlineEditor()
+
+# Module-level wrapper functions for server.py compatibility
+def create_diff(file_path, old_string, new_string, replace_all=False):
+    return inline_editor.create_diff(file_path, old_string, new_string, replace_all)
+
+def accept_diff(diff_id):
+    return inline_editor.accept_diff(diff_id)
+
+def decline_diff(diff_id):
+    return inline_editor.decline_diff(diff_id)
+
+def list_pending_edits():
+    return inline_editor.list_pending_edits()
+
+def list_edit_history():
+    return inline_editor.list_edit_history()

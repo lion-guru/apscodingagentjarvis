@@ -6,6 +6,7 @@ import os
 import time
 from typing import Dict, List
 import httpx
+import master_db
 
 # Model Failover Chain (Free Online Models First)
 MODEL_FAILOVER_CHAIN = [
@@ -13,6 +14,13 @@ MODEL_FAILOVER_CHAIN = [
         "name": "gemini-2.0-flash",
         "api_key": "GEMINI_API_KEY",
         "provider": "google",
+        "free_tier": True,
+        "quality": "high"
+    },
+    {
+        "name": "zenmux-free-chat",
+        "api_key": "ZENMUX_API_KEY",
+        "provider": "zenmux",
         "free_tier": True,
         "quality": "high"
     },
@@ -31,7 +39,23 @@ MODEL_FAILOVER_CHAIN = [
         "quality": "high"
     },
     {
-        "name": "llama3.2:3b",
+        "name": "llama3.3-70b",
+        "api_key": "OLLAMA_API_KEY",
+        "provider": "ollama_cloud",
+        "free_tier": True,
+        "quality": "high",
+        "cloud": True
+    },
+    {
+        "name": "qwen2.5:3b",
+        "api_key": None,
+        "provider": "ollama",
+        "free_tier": True,
+        "quality": "high",
+        "local": True
+    },
+    {
+        "name": "phi3:mini",
         "api_key": None,
         "provider": "ollama",
         "free_tier": True,
@@ -39,11 +63,27 @@ MODEL_FAILOVER_CHAIN = [
         "local": True
     },
     {
-        "name": "qwen2.5:3b-instruct",
+        "name": "llama3.2:1b",
+        "api_key": None,
+        "provider": "ollama",
+        "free_tier": True,
+        "quality": "low",
+        "local": True
+    },
+    {
+        "name": "qwen2.5-coder:1.5b",
         "api_key": None,
         "provider": "ollama",
         "free_tier": True,
         "quality": "medium",
+        "local": True
+    },
+    {
+        "name": "gemma3:1b",
+        "api_key": None,
+        "provider": "ollama",
+        "free_tier": True,
+        "quality": "low",
         "local": True
     }
 ]
@@ -61,7 +101,7 @@ class ModelFailoverManager:
             if model_config["name"] not in self.failed_models:
                 # Check if API key is available for non-local models
                 if not model_config.get("local"):
-                    api_key = os.getenv(model_config["api_key"])
+                    api_key = master_db.get_key(model_config["api_key"]) if model_config["api_key"] else None
                     if not api_key:
                         continue  # Skip if API key not available
                 

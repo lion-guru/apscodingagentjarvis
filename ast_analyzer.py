@@ -108,3 +108,22 @@ class ASTAnalyzer:
         if "error" in result:
             return {"imports": [], "imported_by": []}
         return {"imports": result.get("imports", []), "imported_by": []}
+
+
+# Module-level instance & wrapper functions
+_analyzer = ASTAnalyzer()
+
+def analyze_file(filepath: str) -> Dict:
+    return _analyzer.analyze_file(filepath)
+
+def get_definition(filepath: str, symbol_name: str) -> Optional[Dict]:
+    return _analyzer.get_definition(filepath, symbol_name)
+
+def find_references(filepath: str, symbol_name: str) -> List[Dict]:
+    return _analyzer.find_references(filepath, symbol_name)
+
+def get_outline(filepath: str) -> List[Dict]:
+    return _analyzer.get_outline(filepath)
+
+def get_import_graph(filepath: str) -> Dict:
+    return _analyzer.get_import_graph(filepath)

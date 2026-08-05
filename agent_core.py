@@ -221,10 +221,23 @@ class AgentOrchestrator:
             task.status = AgentStatus.FAILED
             task.error = "No agent available"
             return task
+        # Broadcast agent running status to Agent Town
+        try:
+            from agent_town_bridge import update_agent_status
+            update_agent_status(task.agent_role, "running", task.title)
+        except Exception:
+            pass
         result = await agent.execute(task)
         task.result = result
         task.status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
         task.completed_at = time.time()
+        # Broadcast agent done/failed status to Agent Town
+        try:
+            from agent_town_bridge import update_agent_status
+            status = "done" if result.success else "failed"
+            update_agent_status(task.agent_role, status, task.title)
+        except Exception:
+            pass
         return task
 
     def approve_task(self, task_id: str, approved: bool) -> bool:

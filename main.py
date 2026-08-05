@@ -311,7 +311,7 @@ def main():
                         
                         chain = mm.get_failover_chain()
                         console.print(f"\n  [bold]🔄 Failover chain:[/] [dim]{' → '.join(chain)[:80]}[/]")
-                        return
+                        continue
                 except Exception:
                     pass
                 

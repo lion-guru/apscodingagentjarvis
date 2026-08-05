@@ -1,6 +1,7 @@
 import subprocess
 import re
 import os
+import json
 from typing import List, Dict, Optional
 
 
@@ -57,7 +58,7 @@ class LinterEngine:
     def _parse_ruff(self, output: str, filepath: str) -> List[Dict]:
         diagnostics = []
         try:
-            data = eval(output) if output.startswith("[") else []
+            data = json.loads(output) if output.startswith("[") else []
             if isinstance(data, list):
                 for item in data:
                     diagnostics.append({
@@ -88,7 +89,7 @@ class LinterEngine:
     def _parse_pylint(self, output: str, filepath: str) -> List[Dict]:
         diagnostics = []
         try:
-            data = eval(output) if output.startswith("[") else []
+            data = json.loads(output) if output.startswith("[") else []
             if isinstance(data, list):
                 for item in data:
                     diagnostics.append({

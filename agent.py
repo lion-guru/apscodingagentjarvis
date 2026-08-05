@@ -21,6 +21,7 @@ from typing import Callable, Any
 import httpx
 import time
 import threading
+import master_db
 
 
 # Load local environment variables from .env file
@@ -45,7 +46,7 @@ load_env_file()
 # CONFIG
 # ─────────────────────────────────────────────────────────────────
 OLLAMA_BASE  = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-DEFAULT_MODEL = os.getenv("JARVIS_MODEL", "llama-3.3-70b-versatile")
+DEFAULT_MODEL = os.getenv("JARVIS_MODEL", "qwen2.5-coder:1.5b")
 
 # Model Failover Chain (Free Online Models First)
 # Updated 2026-08-01: Use working models with gemini-2.5-flash as primary
@@ -54,9 +55,11 @@ MODEL_FAILOVER_CHAIN = [
     "google/gemini-2.5-flash",   # OpenRouter Gemini 2.5 Flash (quality, coding) ✅
     "llama-3.1-8b-instant",      # Groq Llama 3.1 8B (fast fallback) ✅
     "google/gemma-4-31b-it",     # OpenRouter free vision model ✅
-    "llama3.2:1b",               # Local Ollama (small, fast)
-    "qwen2.5-coder:1.5b",        # Local Ollama coder (small)
-    "gemma3:1b"                   # Local Ollama (lightest) ✅
+    "qwen2.5:3b",               # Local Ollama 3B (best local coding+Hindi)
+    "phi3:mini",                 # Local Phi-3 mini (fast logic, 2.2GB)
+    "llama3.2:1b",              # Local Ollama (small, fast)
+    "qwen2.5-coder:1.5b",       # Local Ollama coder (small)
+    "gemma3:1b"                  # Local Ollama (lightest) ✅
 ]
 
 # Import verification and multi-brain systems
@@ -5174,7 +5177,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
     try:
         # 1. Google Gemini API Route
         if "gemini" in model_lower:
-            api_key = os.getenv("GEMINI_API_KEY")
+            api_key = master_db.get_key("GEMINI_API_KEY")
             if not api_key:
                 raise ValueError("GEMINI_API_KEY is not set.")
             system_instruction = ""
@@ -5211,7 +5214,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429:
                     # Fall back to OpenRouter Gemini when direct quota exceeded
-                    or_key = os.getenv("OPENROUTER_API_KEY")
+                    or_key = master_db.get_key("OPENROUTER_API_KEY")
                     if or_key:
                         or_payload = {"model": "google/gemini-2.5-flash", "messages": messages, "max_tokens": 4096}
                         or_headers = {"Authorization": f"Bearer {or_key}", "Content-Type": "application/json", "HTTP-Referer": "http://127.0.0.1:7860", "X-Title": "DevMind"}
@@ -5232,7 +5235,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
 
         # 1b. OpenCode Zen Route (multi-model gateway incl. free models)
         elif _is_zen_model(model_lower):
-            api_key = os.getenv("OPENCODE_API_KEY")
+            api_key = master_db.get_key("OPENCODE_API_KEY")
             if not api_key:
                 raise ValueError("OPENCODE_API_KEY is missing in .env file.")
             payload = {"model": model, "messages": messages}
@@ -5277,7 +5280,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
 
         # 3. OpenAI GPT Route
         elif "gpt" in model_lower:
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = master_db.get_key("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("OPENAI_API_KEY is missing in .env file.")
             url = "https://api.openai.com/v1/chat/completions"
@@ -5291,7 +5294,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
 
         # 3. Anthropic Claude Route
         elif "claude" in model_lower:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
+            api_key = master_db.get_key("ANTHROPIC_API_KEY")
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY is missing in .env file.")
             url = "https://api.anthropic.com/v1/messages"
@@ -5309,7 +5312,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
 
         # 4. OpenRouter Route
         elif "/" in model_lower or "openrouter" in model_lower:
-            api_key = os.getenv("OPENROUTER_API_KEY")
+            api_key = master_db.get_key("OPENROUTER_API_KEY")
             if not api_key:
                 raise ValueError("OPENROUTER_API_KEY is missing in .env file.")
             url = "https://openrouter.ai/api/v1/chat/completions"
@@ -5328,7 +5331,7 @@ def dispatch_single_model(messages: list[dict], model: str) -> str:
 
         # 4b. Groq Route (free/fast inference via LPU)
         elif _is_groq_model(model_lower):
-            api_key = os.getenv("GROQ_API_KEY")
+            api_key = master_db.get_key("GROQ_API_KEY")
             if not api_key:
                 raise ValueError("GROQ_API_KEY is missing in .env file.")
             url = "https://api.groq.com/openai/v1/chat/completions"
@@ -5450,17 +5453,17 @@ def ollama_chat(messages: list[dict], model: str = DEFAULT_MODEL) -> str:
     last_err = None
     for current_model in unique_chain:
         # Skip API models if API key is missing before trying
-        if "gemini" in current_model.lower() and not os.getenv("GEMINI_API_KEY"):
+        if "gemini" in current_model.lower() and not master_db.get_key("GEMINI_API_KEY"):
             continue
-        if ("/" in current_model or "openrouter" in current_model.lower()) and not os.getenv("OPENROUTER_API_KEY"):
+        if ("/" in current_model or "openrouter" in current_model.lower()) and not master_db.get_key("OPENROUTER_API_KEY"):
             continue
-        if "gpt" in current_model.lower() and not os.getenv("OPENAI_API_KEY"):
+        if "gpt" in current_model.lower() and not master_db.get_key("OPENAI_API_KEY"):
             continue
-        if "claude" in current_model.lower() and not os.getenv("ANTHROPIC_API_KEY"):
+        if "claude" in current_model.lower() and not master_db.get_key("ANTHROPIC_API_KEY"):
             continue
-        if _is_groq_model(current_model.lower()) and not os.getenv("GROQ_API_KEY"):
+        if _is_groq_model(current_model.lower()) and not master_db.get_key("GROQ_API_KEY"):
             continue
-        if _is_zen_model(current_model.lower()) and not os.getenv("OPENCODE_API_KEY"):
+        if _is_zen_model(current_model.lower()) and not master_db.get_key("OPENCODE_API_KEY"):
             continue
         if _is_omniroute_model(current_model.lower()):
             try:
@@ -5521,19 +5524,19 @@ def check_ollama() -> tuple[bool, list[str]]:
         pass
         
     # 2. Append free online models if API keys are set
-    if os.getenv("GEMINI_API_KEY"):
+    if master_db.get_key("GEMINI_API_KEY"):
         models.extend(["gemini-2.5-flash"])
         ollama_running = True
     
-    if os.getenv("GROQ_API_KEY"):
+    if master_db.get_key("GROQ_API_KEY"):
         models.extend(["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
         ollama_running = True
     
-    if os.getenv("OPENROUTER_API_KEY"):
+    if master_db.get_key("OPENROUTER_API_KEY"):
         models.extend(["google/gemma-2-9b-it:free", "meta-llama/llama-3.3-70b-instruct:free"])
         ollama_running = True
     
-    if os.getenv("OPENCODE_API_KEY"):
+    if master_db.get_key("OPENCODE_API_KEY"):
         models.extend(list(ZEN_FREE_MODELS))
         ollama_running = True
 

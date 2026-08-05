@@ -228,6 +228,54 @@ def test_openrouter() -> list[dict]:
     return models
 
 
+def test_zenmux() -> list[dict]:
+    """Test ZenMux free AI chat platform"""
+    models = []
+    api_key = os.getenv("ZENMUX_API_KEY")
+    if not api_key:
+        fail("ZENMUX_API_KEY not set — skipping ZenMux")
+        return models
+
+    info("Testing ZenMux free AI chat models...")
+    zenmux_models = [
+        ("zenmux-free-chat", "ZenMux Free AI Chat - unlimited free conversations"),
+    ]
+
+    for model_id, desc in zenmux_models:
+        try:
+            url = "https://zenmux.ai/api/v1/chat/completions"
+            payload = {
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": "Say hi in 5 words"}],
+                "max_tokens": 30,
+            }
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            start = time.time()
+            resp = httpx.post(url, json=payload, headers=headers, timeout=15.0)
+            elapsed = round(time.time() - start, 2)
+
+            if resp.status_code == 200:
+                text = resp.json()["choices"][0]["message"]["content"]
+                ok(f"{model_id} — {desc} [{elapsed}s]")
+                models.append({
+                    "provider": "zenmux",
+                    "model": model_id,
+                    "display_name": f"ZenMux {model_id}",
+                    "description": desc,
+                    "latency_s": elapsed,
+                    "response_preview": text[:60],
+                    "free_tier": True,
+                    "requires_key": "ZENMUX_API_KEY",
+                })
+            else:
+                err = resp.text[:80]
+                fail(f"{model_id} — {err}")
+        except Exception as e:
+            fail(f"{model_id} — {e}")
+
+    return models
+
+
 def test_huggingface() -> list[dict]:
     """Test HuggingFace free inference API"""
     models = []
@@ -364,6 +412,8 @@ def discover_all() -> dict:
     print()
     all_models.extend(test_openrouter())
     print()
+    all_models.extend(test_zenmux())
+    print()
     all_models.extend(test_huggingface())
     print()
     all_models.extend(test_ollama_local())
@@ -397,7 +447,7 @@ def discover_all() -> dict:
     # 3. Best OpenRouter free (high quality)
     # 4. HuggingFace (backup)
     # 5. Local Ollama (last resort)
-    priority_order = ["google", "groq", "openrouter", "huggingface", "ollama"]
+    priority_order = ["google", "groq", "zenmux", "openrouter", "huggingface", "ollama"]
     for provider in priority_order:
         if provider in provider_groups:
             best = min(provider_groups[provider], key=lambda x: x["latency_s"])

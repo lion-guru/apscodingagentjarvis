@@ -131,3 +131,16 @@ class ContextManager:
 
 
 context_manager = ContextManager()
+
+# Module-level wrapper functions for server.py compatibility
+def save_context(session_id, messages, metadata=None):
+    return context_manager.save_context(session_id, messages, metadata)
+
+def load_context(session_id):
+    return context_manager.load_context(session_id)
+
+def list_contexts():
+    return context_manager.list_contexts()
+
+def get_context_stats():
+    return context_manager.get_context_stats()

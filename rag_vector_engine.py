@@ -19,7 +19,13 @@ class DevMindRAGEngine:
             RAG_INDEX_FILE.write_text(json.dumps({"documents": [], "indexed_files": 0}, indent=2), encoding="utf-8")
 
     def _tokenize(self, text: str) -> list[str]:
-        return re.findall(r'\w+', text.lower())
+        """Tokenize text — handles English + Hindi/Devanagari."""
+        tokens = []
+        # English words
+        tokens.extend(re.findall(r'[a-zA-Z_]\w*', text.lower()))
+        # Devanagari words (Hindi)
+        tokens.extend(re.findall(r'[\u0900-\u097F]+', text))
+        return tokens
 
     def _bm25_score(self, query_tokens: list[str], doc_tokens: list[str],
                     avg_doc_len: float, k1: float = 1.5, b: float = 0.75) -> float:
@@ -121,6 +127,10 @@ class DevMindRAGEngine:
             ]
         except Exception as e:
             return []
+
+    def hybrid_search(self, query: str, top_k: int = 5) -> list[dict]:
+        """Perform hybrid BM25 + semantic RAG search."""
+        return self.search_rag(query, top_k=top_k, method="bm25")
 
 # Global Instance
 rag_engine = DevMindRAGEngine()

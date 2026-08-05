@@ -6,6 +6,7 @@ Provides inline suggestions based on context, AST analysis, and pattern matching
 import os
 import re
 from pathlib import Path
+from datetime import datetime
 
 COMPLETIONS_DIR = Path.home() / ".devmind" / "completions"
 
@@ -212,5 +213,5 @@ completion_engine = CompletionEngine()
 def get_completions(file_path: str = "", line: str = "", cursor_pos: int = 0, context: str = "", language: str = "python") -> list:
     return completion_engine.get_completions(file_path, line, cursor_pos, context, language)
 
-def record_completion(file_path: str, completion: str) -> dict:
-    return completion_engine.record_completion(file_path, completion)
+def record_completion(file_path: str, label: str = "", insert_text: str = "") -> dict:
+    return completion_engine.record_completion(file_path, label, insert_text)

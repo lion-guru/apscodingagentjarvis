@@ -92,3 +92,16 @@ CMD ["python", "server.py"]
 
 
 deploy_panel = DeployPanel()
+
+# Module-level wrapper functions for server.py compatibility
+def deploy_docker(workspace="E:\\coding-assistant"):
+    return deploy_panel.deploy_docker(workspace)
+
+def deploy_cloud(provider="aws", workspace="E:\\coding-assistant"):
+    return deploy_panel.deploy_cloud(provider, workspace)
+
+def deploy_local(workspace="E:\\coding-assistant"):
+    return deploy_panel.deploy_local(workspace)
+
+def list_deployments():
+    return deploy_panel.list_deployments()

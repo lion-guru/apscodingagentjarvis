@@ -1,16 +1,16 @@
 {
   "gemini-2.0-flash": {
-    "total_calls": 2,
-    "successful_calls": 0,
+    "total_calls": 6,
+    "successful_calls": 4,
     "failed_calls": 2,
-    "total_tokens": 0,
-    "total_time": 2.924607515335083,
-    "success_rate": 0.0,
-    "avg_time": 1.4623037576675415,
+    "total_tokens": 52915,
+    "total_time": 19.137775421142578,
+    "success_rate": 0.6666666666666666,
+    "avg_time": 3.189629236857096,
     "task_types": {
       "code_generation": {
-        "count": 1,
-        "success": 0,
+        "count": 5,
+        "success": 4,
         "fail": 1
       },
       "general": {
@@ -84,22 +84,22 @@
     }
   },
   "gemini-2.5-flash": {
-    "total_calls": 23,
-    "successful_calls": 6,
+    "total_calls": 31,
+    "successful_calls": 14,
     "failed_calls": 17,
-    "total_tokens": 64146,
-    "total_time": 86.88466501235962,
-    "success_rate": 0.2608695652173913,
-    "avg_time": 3.7775941309721572,
+    "total_tokens": 66373,
+    "total_time": 142.84640169143677,
+    "success_rate": 0.45161290322580644,
+    "avg_time": 4.607948441659251,
     "task_types": {
       "file_operations": {
-        "count": 4,
-        "success": 3,
+        "count": 5,
+        "success": 4,
         "fail": 1
       },
       "general": {
-        "count": 13,
-        "success": 2,
+        "count": 20,
+        "success": 9,
         "fail": 11
       },
       "code_generation": {

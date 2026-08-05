@@ -37,7 +37,11 @@ def load_and_seed_keys():
     try:
         import pymysql
         conn = pymysql.connect(
-            host="127.0.0.1", port=3307, user="root", password="", database="apsdreamhome",
+            host=os.getenv("MYSQL_HOST", "127.0.0.1"),
+            port=int(os.getenv("MYSQL_PORT", "3307")),
+            user=os.getenv("MYSQL_USER", "root"),
+            password=os.getenv("MYSQL_PASSWORD", ""),
+            database=os.getenv("MYSQL_DATABASE", "apsdreamhome"),
             connect_timeout=2
         )
         with conn.cursor() as cursor:

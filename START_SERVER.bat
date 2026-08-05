@@ -92,9 +92,9 @@ echo ============================================================
 echo.
 
 set DEVMIND_CWD=E:\coding-assistant
-set DEVMIND_MODEL=gemini-2.5-flash
+if not defined DEVMIND_MODEL set DEVMIND_MODEL=gemini-2.5-flash
 
-venv\Scripts\uvicorn.exe server:app --host 127.0.0.1 --port 7860 --reload --log-level info
+venv\Scripts\python.exe -m uvicorn server:app --host 127.0.0.1 --port 7860 --log-level info
 
 echo.
 echo Server stopped. Press any key to exit.

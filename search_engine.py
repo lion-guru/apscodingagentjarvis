@@ -133,3 +133,10 @@ class SearchEngine:
 
 
 search_engine = SearchEngine()
+
+# Module-level wrapper functions for server.py compatibility
+def index_workspace(workspace):
+    return search_engine.index_workspace(workspace)
+
+def search(query, top_k=10, method="hybrid"):
+    return search_engine.search(query, top_k, method)

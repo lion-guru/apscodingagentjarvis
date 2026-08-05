@@ -113,13 +113,13 @@ $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $SkipDevMind) {
     Write-Output "[3/3] Starting DevMind server..."
 
-    $venvPython = Join-Path $SCRIPT_DIR "venv\Scripts\uvicorn.exe"
+    $venvPython = Join-Path $SCRIPT_DIR "venv\Scripts\python.exe"
     if (-not (Test-Path $venvPython)) {
         Write-Output "  ERROR: Virtual environment not found at venv\"
         Write-Output "  Run: python -m venv venv && .\venv\Scripts\Activate.ps1 && pip install -r requirements.txt"
     } else {
         $env:PYTHONUNBUFFERED = "1"
-        Start-Process -FilePath $venvPython -ArgumentList "server:app --host 127.0.0.1 --port 7860 --reload" -WindowStyle Hidden -PassThru
+        Start-Process -FilePath $venvPython -ArgumentList "-m uvicorn server:app --host 127.0.0.1 --port 7860" -WindowStyle Hidden -PassThru
         Start-Sleep -Seconds 3
 
         try {
